@@ -1,0 +1,2919 @@
+openapi: 3.0.3
+info:
+  title: 运维任务调度系统 API
+  description: 运维任务调度系统的RESTful API接口文档
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@example.com
+
+servers:
+  - url: http://localhost:8000/api/v1
+    description: 开发环境
+  - url: https://api.example.com/api/v1
+    description: 生产环境
+
+tags:
+  - name: Dashboard
+    description: 仪表盘相关接口
+  - name: Script
+    description: 脚本管理相关接口
+  - name: Task
+    description: 任务调度相关接口
+  - name: Execution
+    description: 执行记录相关接口
+  - name: Node
+    description: 节点管理相关接口
+  - name: User
+    description: 用户权限相关接口
+  - name: Category
+    description: 脚本分类相关接口
+  - name: Config
+    description: 系统配置相关接口
+  - name: Auth
+    description: 认证授权相关接口
+  - name: Agent
+    description: Agent通信相关接口
+
+paths:
+  /dashboard/stats:
+    get:
+      tags:
+        - Dashboard
+      summary: 获取仪表盘统计数据
+      description: 获取今日执行任务数、成功率、在线节点数等关键指标
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      today_executions:
+                        type: integer
+                        example: 127
+                      success_rate:
+                        type: number
+                        format: float
+                        example: 98.4
+                      online_nodes:
+                        type: integer
+                        example: 12
+                      total_nodes:
+                        type: integer
+                        example: 14
+
+  /dashboard/script-distribution:
+    get:
+      tags:
+        - Dashboard
+      summary: 获取脚本类型分布
+      description: 获取Python和Shell脚本的数量分布
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      python:
+                        type: integer
+                        example: 28
+                      shell:
+                        type: integer
+                        example: 17
+
+  /dashboard/task-stats:
+    get:
+      tags:
+        - Dashboard
+      summary: 获取调度任务统计
+      description: 获取定时任务、触发式、手动任务的数量
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      scheduled:
+                        type: integer
+                        example: 32
+                      triggered:
+                        type: integer
+                        example: 18
+                      manual:
+                        type: integer
+                        example: 23
+
+  /dashboard/recent-executions:
+    get:
+      tags:
+        - Dashboard
+      summary: 获取最近执行记录
+      description: 获取最近N条执行记录
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          description: 返回记录数量
+          required: false
+          schema:
+            type: integer
+            default: 5
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          example: exec_20240130_143025_001
+                        script_name:
+                          type: string
+                          example: 系统巡检脚本
+                        status:
+                          type: string
+                          enum: [pending, running, success, failed, timeout]
+                          example: success
+                        node:
+                          type: string
+                          example: node-01
+                        start_time:
+                          type: string
+                          example: 2026-01-30 14:30:25
+                        duration:
+                          type: string
+                          example: 2m 15s
+
+  /scripts:
+    get:
+      tags:
+        - Script
+      summary: 获取脚本列表
+      description: 分页查询脚本列表，支持关键词搜索和筛选
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: 页码
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: size
+          in: query
+          description: 每页数量
+          required: false
+          schema:
+            type: integer
+            default: 20
+        - name: keyword
+          in: query
+          description: 搜索关键词
+          required: false
+          schema:
+            type: string
+        - name: type
+          in: query
+          description: 脚本类型
+          required: false
+          schema:
+            type: string
+            enum: [Python, Shell]
+        - name: category_id
+          in: query
+          description: 分类ID
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                        example: 45
+                      page:
+                        type: integer
+                        example: 1
+                      size:
+                        type: integer
+                        example: 20
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            name:
+                              type: string
+                              example: 系统巡检脚本
+                            type:
+                              type: string
+                              enum: [Python, Shell]
+                              example: Python
+                            category_id:
+                              type: integer
+                              example: 1
+                            category_name:
+                              type: string
+                              example: 监控告警
+                            maintainer:
+                              type: string
+                              example: 张三
+                            updated_at:
+                              type: string
+                              example: 2026-01-28 14:30:00
+    post:
+      tags:
+        - Script
+      summary: 创建脚本
+      description: 创建新的脚本
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - type
+                - category_id
+                - content
+                - maintainer
+              properties:
+                name:
+                  type: string
+                  example: 系统巡检脚本
+                type:
+                  type: string
+                  enum: [Python, Shell]
+                  example: Python
+                category_id:
+                  type: integer
+                  example: 1
+                content:
+                  type: string
+                  example: "#!/usr/bin/env python3\nprint('Hello, World!')"
+                description:
+                  type: string
+                  example: 定期检查系统健康状态
+                maintainer:
+                  type: string
+                  example: 张三
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      name:
+                        type: string
+                        example: 系统巡检脚本
+                      type:
+                        type: string
+                        example: Python
+                      category_id:
+                        type: integer
+                        example: 1
+                      content:
+                        type: string
+                        example: "#!/usr/bin/env python3\nprint('Hello, World!')"
+                      version:
+                        type: string
+                        example: 1.0.0
+                      created_at:
+                        type: string
+                        example: 2026-01-28 14:30:00
+
+  /scripts/{id}:
+    get:
+      tags:
+        - Script
+      summary: 获取脚本详情
+      description: 获取指定脚本的详细信息
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: 脚本ID
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      name:
+                        type: string
+                        example: 系统巡检脚本
+                      type:
+                        type: string
+                        example: Python
+                      category_id:
+                        type: integer
+                        example: 1
+                      category_name:
+                        type: string
+                        example: 监控告警
+                      content:
+                        type: string
+                        example: "#!/usr/bin/env python3\nprint('Hello, World!')"
+                      description:
+                        type: string
+                        example: 定期检查系统健康状态
+                      maintainer:
+                        type: string
+                        example: 张三
+                      version:
+                        type: string
+                        example: 1.0.0
+                      created_by:
+                        type: string
+                        example: 张三
+                      created_at:
+                        type: string
+                        example: 2026-01-28 14:30:00
+                      updated_at:
+                        type: string
+                        example: 2026-01-28 14:30:00
+    put:
+      tags:
+        - Script
+      summary: 更新脚本
+      description: 更新脚本信息
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: 脚本ID
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: 系统巡检脚本
+                type:
+                  type: string
+                  enum: [Python, Shell]
+                  example: Python
+                category_id:
+                  type: integer
+                  example: 1
+                content:
+                  type: string
+                  example: "#!/usr/bin/env python3\nprint('Hello, World!')"
+                description:
+                  type: string
+                  example: 定期检查系统健康状态
+                maintainer:
+                  type: string
+                  example: 张三
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      name:
+                        type: string
+                        example: 系统巡检脚本
+                      type:
+                        type: string
+                        example: Python
+                      category_id:
+                        type: integer
+                        example: 1
+                      content:
+                        type: string
+                        example: "#!/usr/bin/env python3\nprint('Hello, World!')"
+                      version:
+                        type: string
+                        example: 1.0.1
+                      updated_at:
+                        type: string
+                        example: 2026-01-28 15:30:00
+    delete:
+      tags:
+        - Script
+      summary: 删除脚本
+      description: 删除指定脚本
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: 脚本ID
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    nullable: true
+
+  /scripts/{id}/execute:
+    post:
+      tags:
+        - Script
+      summary: 立即执行脚本
+      description: 手动触发脚本执行
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: 脚本ID
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - node_ids
+                - environment
+              properties:
+                node_ids:
+                  type: array
+                  items:
+                    type: integer
+                  example: [1, 2, 3]
+                environment:
+                  type: string
+                  enum: [dev, test, prod]
+                  example: prod
+                parameters:
+                  type: object
+                  example: {"key": "value"}
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      execution_id:
+                        type: string
+                        example: exec_20240130_143025_001
+                      status:
+                        type: string
+                        enum: [pending, running, success, failed, timeout]
+                        example: pending
+                      started_at:
+                        type: string
+                        example: 2026-01-30 14:30:25
+
+  /scheduled-tasks:
+    get:
+      tags:
+        - Task
+      summary: 获取调度任务列表
+      description: 分页查询调度任务列表，支持关键词搜索和筛选
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: 页码
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: size
+          in: query
+          description: 每页数量
+          required: false
+          schema:
+            type: integer
+            default: 20
+        - name: keyword
+          in: query
+          description: 搜索关键词
+          required: false
+          schema:
+            type: string
+        - name: status
+          in: query
+          description: 任务状态
+          required: false
+          schema:
+            type: string
+            enum: [enabled, disabled]
+        - name: environment
+          in: query
+          description: 执行环境
+          required: false
+          schema:
+            type: string
+            enum: [dev, test, prod]
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                        example: 50
+                      page:
+                        type: integer
+                        example: 1
+                      size:
+                        type: integer
+                        example: 20
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            name:
+                              type: string
+                              example: 每日系统巡检
+                            script_id:
+                              type: integer
+                              example: 1
+                            script_name:
+                              type: string
+                              example: 系统巡检脚本
+                            cron_expression:
+                              type: string
+                              example: "0 9 * * *"
+                            cron_description:
+                              type: string
+                              example: 每天 09:00
+                            enabled:
+                              type: boolean
+                              example: true
+                            next_run_time:
+                              type: string
+                              example: 2026-01-30 09:00:00
+                            last_run_time:
+                              type: string
+                              example: 2026-01-29 09:00:00
+                            last_run_status:
+                              type: string
+                              enum: [success, failed, timeout]
+                              example: success
+    post:
+      tags:
+        - Task
+      summary: 创建调度任务
+      description: 创建新的调度任务
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - script_id
+                - cron_expression
+                - environment
+              properties:
+                name:
+                  type: string
+                  example: 每日系统巡检
+                script_id:
+                  type: integer
+                  example: 1
+                cron_expression:
+                  type: string
+                  example: "0 9 * * *"
+                cron_description:
+                  type: string
+                  example: 每天 09:00
+                environment:
+                  type: string
+                  enum: [dev, test, prod]
+                  example: prod
+                execution_mode:
+                  type: string
+                  enum: [all, specified]
+                  default: all
+                  example: all
+                target_nodes:
+                  type: array
+                  items:
+                    type: integer
+                  example: [1, 2, 3]
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      name:
+                        type: string
+                        example: 每日系统巡检
+                      script_id:
+                        type: integer
+                        example: 1
+                      cron_expression:
+                        type: string
+                        example: "0 9 * * *"
+                      enabled:
+                        type: boolean
+                        example: true
+                      next_run_time:
+                        type: string
+                        example: 2026-01-30 09:00:00
+                      created_at:
+                        type: string
+                        example: 2026-01-28 14:30:00
+
+  /scheduled-tasks/{id}:
+    get:
+      tags:
+        - Task
+      summary: 获取调度任务详情
+      description: 获取指定调度任务的详细信息
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: 任务ID
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      name:
+                        type: string
+                        example: 每日系统巡检
+                      script_id:
+                        type: integer
+                        example: 1
+                      script_name:
+                        type: string
+                        example: 系统巡检脚本
+                      cron_expression:
+                        type: string
+                        example: "0 9 * * *"
+                      cron_description:
+                        type: string
+                        example: 每天 09:00
+                      environment:
+                        type: string
+                        example: prod
+                      execution_mode:
+                        type: string
+                        example: all
+                      target_nodes:
+                        type: array
+                        items:
+                          type: integer
+                        example: [1, 2, 3]
+                      enabled:
+                        type: boolean
+                        example: true
+                      next_run_time:
+                        type: string
+                        example: 2026-01-30 09:00:00
+                      last_run_time:
+                        type: string
+                        example: 2026-01-29 09:00:00
+                      last_run_status:
+                        type: string
+                        example: success
+                      created_by:
+                        type: string
+                        example: 张三
+                      created_at:
+                        type: string
+                        example: 2026-01-28 14:30:00
+                      updated_at:
+                        type: string
+                        example: 2026-01-28 14:30:00
+    put:
+      tags:
+        - Task
+      summary: 更新调度任务
+      description: 更新调度任务信息
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: 任务ID
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: 每日系统巡检
+                script_id:
+                  type: integer
+                  example: 1
+                cron_expression:
+                  type: string
+                  example: "0 9 * * *"
+                cron_description:
+                  type: string
+                  example: 每天 09:00
+                environment:
+                  type: string
+                  enum: [dev, test, prod]
+                  example: prod
+                execution_mode:
+                  type: string
+                  enum: [all, specified]
+                  example: all
+                target_nodes:
+                  type: array
+                  items:
+                    type: integer
+                  example: [1, 2, 3]
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      name:
+                        type: string
+                        example: 每日系统巡检
+                      script_id:
+                        type: integer
+                        example: 1
+                      cron_expression:
+                        type: string
+                        example: "0 9 * * *"
+                      enabled:
+                        type: boolean
+                        example: true
+                      next_run_time:
+                        type: string
+                        example: 2026-01-30 09:00:00
+                      updated_at:
+                        type: string
+                        example: 2026-01-28 15:30:00
+    delete:
+      tags:
+        - Task
+      summary: 删除调度任务
+      description: 删除指定调度任务
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: 任务ID
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    nullable: true
+
+  /scheduled-tasks/{id}/toggle:
+    put:
+      tags:
+        - Task
+      summary: 启用/暂停调度任务
+      description: 切换调度任务的启用状态
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: 任务ID
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - enabled
+              properties:
+                enabled:
+                  type: boolean
+                  example: true
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      enabled:
+                        type: boolean
+                        example: true
+                      next_run_time:
+                        type: string
+                        example: 2026-01-30 09:00:00
+
+  /scheduled-tasks/stats:
+    get:
+      tags:
+        - Task
+      summary: 获取调度任务统计
+      description: 获取调度任务的数量统计
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                        example: 50
+                      enabled:
+                        type: integer
+                        example: 32
+                      disabled:
+                        type: integer
+                        example: 18
+
+  /executions:
+    get:
+      tags:
+        - Execution
+      summary: 获取执行记录列表
+      description: 分页查询执行记录列表，支持关键词搜索和筛选
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: 页码
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: size
+          in: query
+          description: 每页数量
+          required: false
+          schema:
+            type: integer
+            default: 20
+        - name: keyword
+          in: query
+          description: 搜索关键词
+          required: false
+          schema:
+            type: string
+        - name: status
+          in: query
+          description: 执行状态
+          required: false
+          schema:
+            type: string
+            enum: [pending, running, success, failed, timeout]
+        - name: environment
+          in: query
+          description: 执行环境
+          required: false
+          schema:
+            type: string
+            enum: [dev, test, prod]
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                        example: 100
+                      page:
+                        type: integer
+                        example: 1
+                      size:
+                        type: integer
+                        example: 20
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            execution_id:
+                              type: string
+                              example: exec_20240130_143025_001
+                            script_name:
+                              type: string
+                              example: 系统巡检脚本
+                            executor:
+                              type: string
+                              example: 张三
+                            execution_type:
+                              type: string
+                              enum: [manual, scheduled]
+                              example: manual
+                            environment:
+                              type: string
+                              example: prod
+                            status:
+                              type: string
+                              enum: [pending, running, success, failed, timeout]
+                              example: success
+                            node_count:
+                              type: integer
+                              example: 3
+                            success_count:
+                              type: integer
+                              example: 3
+                            failed_count:
+                              type: integer
+                              example: 0
+                            duration:
+                              type: integer
+                              example: 135
+                            started_at:
+                              type: string
+                              example: 2026-01-30 14:30:25
+                            completed_at:
+                              type: string
+                              example: 2026-01-30 14:32:40
+
+  /executions/{execution_id}:
+    get:
+      tags:
+        - Execution
+      summary: 获取执行记录详情
+      description: 获取指定执行记录的详细信息
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: execution_id
+          in: path
+          description: 执行ID
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      execution_id:
+                        type: string
+                        example: exec_20240130_143025_001
+                      script_id:
+                        type: integer
+                        example: 1
+                      script_name:
+                        type: string
+                        example: 系统巡检脚本
+                      task_id:
+                        type: integer
+                        example: 1
+                      executor:
+                        type: string
+                        example: 张三
+                      execution_type:
+                        type: string
+                        example: manual
+                      environment:
+                        type: string
+                        example: prod
+                      status:
+                        type: string
+                        example: success
+                      node_count:
+                        type: integer
+                        example: 3
+                      success_count:
+                        type: integer
+                        example: 3
+                      failed_count:
+                        type: integer
+                        example: 0
+                      duration:
+                        type: integer
+                        example: 135
+                      error_message:
+                        type: string
+                        example: null
+                      started_at:
+                        type: string
+                        example: 2026-01-30 14:30:25
+                      completed_at:
+                        type: string
+                        example: 2026-01-30 14:32:40
+                      node_executions:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            node_id:
+                              type: integer
+                              example: 1
+                            node_name:
+                              type: string
+                              example: node-01
+                            status:
+                              type: string
+                              example: success
+                            duration:
+                              type: integer
+                              example: 45
+
+  /executions/{execution_id}/logs:
+    get:
+      tags:
+        - Execution
+      summary: 获取执行日志
+      description: 获取指定节点的执行日志
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: execution_id
+          in: path
+          description: 执行ID
+          required: true
+          schema:
+            type: string
+        - name: node_id
+          in: query
+          description: 节点ID
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      execution_id:
+                        type: string
+                        example: exec_20240130_143025_001
+                      node_id:
+                        type: integer
+                        example: 1
+                      node_name:
+                        type: string
+                        example: node-01
+                      status:
+                        type: string
+                        example: success
+                      log_content:
+                        type: string
+                        example: "Starting execution...\nRunning script...\nExecution completed."
+                      exit_code:
+                        type: integer
+                        example: 0
+                      duration:
+                        type: integer
+                        example: 45
+                      started_at:
+                        type: string
+                        example: 2026-01-30 14:30:25
+                      completed_at:
+                        type: string
+                        example: 2026-01-30 14:31:10
+
+  /executions/stats:
+    get:
+      tags:
+        - Execution
+      summary: 获取执行记录统计
+      description: 获取执行记录的数量统计
+      security:
+        - BearerAuth: []
+      parameters: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                        example: 100
+                      success:
+                        type: integer
+                        example: 98
+                      failed:
+                        type: integer
+                        example: 2
+                      success_rate:
+                        type: number
+                        format: float
+                        example: 98.0
+
+  /nodes:
+    get:
+      tags:
+        - Node
+      summary: 获取节点列表
+      description: 分页查询节点列表，支持关键词搜索和筛选
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: 页码
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: size
+          in: query
+          description: 每页数量
+          required: false
+          schema:
+            type: integer
+            default: 20
+        - name: keyword
+          in: query
+          description: 搜索关键词
+          required: false
+          schema:
+            type: string
+        - name: environment
+          in: query
+          description: 节点环境
+          required: false
+          schema:
+            type: string
+            enum: [dev, test, prod]
+        - name: status
+          in: query
+          description: 节点状态
+          required: false
+          schema:
+            type: string
+            enum: [online, offline]
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                        example: 14
+                      page:
+                        type: integer
+                        example: 1
+                      size:
+                        type: integer
+                        example: 20
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            name:
+                              type: string
+                              example: web-server-01
+                            ip:
+                              type: string
+                              example: 192.168.1.10
+                            environment:
+                              type: string
+                              example: prod
+                            tags:
+                              type: array
+                              items:
+                                type: string
+                              example: ["web", "nginx"]
+                            status:
+                              type: string
+                              enum: [online, offline]
+                              example: online
+                            last_heartbeat:
+                              type: string
+                              example: 2026-01-30 10:25:30
+                            cpu_usage:
+                              type: string
+                              example: 45.2%
+                            memory_usage:
+                              type: string
+                              example: 67.8%
+                            disk_usage:
+                              type: string
+                              example: 52.3%
+    post:
+      tags:
+        - Node
+      summary: 创建节点
+      description: 创建新的节点
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - ip
+                - environment
+              properties:
+                name:
+                  type: string
+                  example: web-server-01
+                ip:
+                  type: string
+                  example: 192.168.1.10
+                environment:
+                  type: string
+                  enum: [dev, test, prod]
+                  example: prod
+                tags:
+                  type: array
+                  items:
+                    type: string
+                  example: ["web", "nginx"]
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      name:
+                        type: string
+                        example: web-server-01
+                      ip:
+                        type: string
+                        example: 192.168.1.10
+                      environment:
+                        type: string
+                        example: prod
+                      tags:
+                        type: array
+                        items:
+                          type: string
+                        example: ["web", "nginx"]
+                      status:
+                        type: string
+                        example: offline
+                      created_at:
+                        type: string
+                        example: 2026-01-28 14:30:00
+
+  /nodes/{id}:
+    get:
+      tags:
+        - Node
+      summary: 获取节点详情
+      description: 获取指定节点的详细信息
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: 节点ID
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      name:
+                        type: string
+                        example: web-server-01
+                      ip:
+                        type: string
+                        example: 192.168.1.10
+                      environment:
+                        type: string
+                        example: prod
+                      tags:
+                        type: array
+                        items:
+                          type: string
+                        example: ["web", "nginx"]
+                      status:
+                        type: string
+                        example: online
+                      last_heartbeat:
+                        type: string
+                        example: 2026-01-30 10:25:30
+                      cpu_usage:
+                        type: string
+                        example: 45.2%
+                      memory_usage:
+                        type: string
+                        example: 67.8%
+                      disk_usage:
+                        type: string
+                        example: 52.3%
+                      created_at:
+                        type: string
+                        example: 2026-01-28 14:30:00
+                      updated_at:
+                        type: string
+                        example: 2026-01-30 10:25:30
+    put:
+      tags:
+        - Node
+      summary: 更新节点
+      description: 更新节点信息
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: 节点ID
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: web-server-01
+                ip:
+                  type: string
+                  example: 192.168.1.10
+                environment:
+                  type: string
+                  enum: [dev, test, prod]
+                  example: prod
+                tags:
+                  type: array
+                  items:
+                    type: string
+                  example: ["web", "nginx"]
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      name:
+                        type: string
+                        example: web-server-01
+                      ip:
+                        type: string
+                        example: 192.168.1.10
+                      environment:
+                        type: string
+                        example: prod
+                      tags:
+                        type: array
+                        items:
+                          type: string
+                        example: ["web", "nginx"]
+                      updated_at:
+                        type: string
+                        example: 2026-01-30 10:30:00
+    delete:
+      tags:
+        - Node
+      summary: 删除节点
+      description: 删除指定节点
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: 节点ID
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    nullable: true
+
+  /nodes/{id}/executions:
+    get:
+      tags:
+        - Node
+      summary: 获取节点执行历史
+      description: 获取指定节点的执行历史记录
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: 节点ID
+          required: true
+          schema:
+            type: integer
+        - name: page
+          in: query
+          description: 页码
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: size
+          in: query
+          description: 每页数量
+          required: false
+          schema:
+            type: integer
+            default: 20
+        - name: status
+          in: query
+          description: 执行状态
+          required: false
+          schema:
+            type: string
+            enum: [pending, running, success, failed, timeout]
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                        example: 50
+                      page:
+                        type: integer
+                        example: 1
+                      size:
+                        type: integer
+                        example: 20
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            execution_id:
+                              type: string
+                              example: exec_20240130_143025_001
+                            script_name:
+                              type: string
+                              example: 系统巡检脚本
+                            status:
+                              type: string
+                              example: success
+                            duration:
+                              type: integer
+                              example: 45
+                            started_at:
+                              type: string
+                              example: 2026-01-30 14:30:25
+
+  /nodes/stats:
+    get:
+      tags:
+        - Node
+      summary: 获取节点统计
+      description: 获取节点的数量统计
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                        example: 14
+                      online:
+                        type: integer
+                        example: 12
+                      offline:
+                        type: integer
+                        example: 2
+                      online_rate:
+                        type: number
+                        format: float
+                        example: 85.7
+
+  /users:
+    get:
+      tags:
+        - User
+      summary: 获取用户列表
+      description: 分页查询用户列表，支持关键词搜索和筛选
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: 页码
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: size
+          in: query
+          description: 每页数量
+          required: false
+          schema:
+            type: integer
+            default: 20
+        - name: keyword
+          in: query
+          description: 搜索关键词
+          required: false
+          schema:
+            type: string
+        - name: role
+          in: query
+          description: 用户角色
+          required: false
+          schema:
+            type: string
+            enum: [admin, ops, readonly]
+        - name: status
+          in: query
+          description: 用户状态
+          required: false
+          schema:
+            type: string
+            enum: [active, inactive]
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                        example: 10
+                      page:
+                        type: integer
+                        example: 1
+                      size:
+                        type: integer
+                        example: 20
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            username:
+                              type: string
+                              example: admin
+                            email:
+                              type: string
+                              example: admin@example.com
+                            role:
+                              type: string
+                              enum: [admin, ops, readonly]
+                              example: admin
+                            status:
+                              type: string
+                              enum: [active, inactive]
+                              example: active
+                            created_at:
+                              type: string
+                              example: 2026-01-28 14:30:00
+    post:
+      tags:
+        - User
+      summary: 创建用户
+      description: 创建新的用户
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                  example: testuser
+                password:
+                  type: string
+                  format: password
+                  example: password123
+                email:
+                  type: string
+                  format: email
+                  example: testuser@example.com
+                role:
+                  type: string
+                  enum: [admin, ops, readonly]
+                  default: readonly
+                  example: ops
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 2
+                      username:
+                        type: string
+                        example: testuser
+                      email:
+                        type: string
+                        example: testuser@example.com
+                      role:
+                        type: string
+                        example: ops
+                      status:
+                        type: string
+                        example: active
+                      created_at:
+                        type: string
+                        example: 2026-01-28 14:30:00
+
+  /users/{id}:
+    get:
+      tags:
+        - User
+      summary: 获取用户详情
+      description: 获取指定用户的详细信息
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: 用户ID
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      username:
+                        type: string
+                        example: admin
+                      email:
+                        type: string
+                        example: admin@example.com
+                      role:
+                        type: string
+                        example: admin
+                      status:
+                        type: string
+                        example: active
+                      created_at:
+                        type: string
+                        example: 2026-01-28 14:30:00
+                      updated_at:
+                        type: string
+                        example: 2026-01-28 14:30:00
+    put:
+      tags:
+        - User
+      summary: 更新用户
+      description: 更新用户信息
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: 用户ID
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: admin@example.com
+                role:
+                  type: string
+                  enum: [admin, ops, readonly]
+                  example: admin
+                status:
+                  type: string
+                  enum: [active, inactive]
+                  example: active
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      username:
+                        type: string
+                        example: admin
+                      email:
+                        type: string
+                        example: admin@example.com
+                      role:
+                        type: string
+                        example: admin
+                      status:
+                        type: string
+                        example: active
+                      updated_at:
+                        type: string
+                        example: 2026-01-28 15:30:00
+    delete:
+      tags:
+        - User
+      summary: 删除用户
+      description: 删除指定用户
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: 用户ID
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    nullable: true
+
+  /users/{id}/reset-password:
+    put:
+      tags:
+        - User
+      summary: 重置用户密码
+      description: 重置指定用户的密码
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: 用户ID
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - password
+              properties:
+                password:
+                  type: string
+                  format: password
+                  example: newpassword123
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    nullable: true
+
+  /users/me/change-password:
+    put:
+      tags:
+        - User
+      summary: 修改当前用户密码
+      description: 当前用户修改自己的密码
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - old_password
+                - new_password
+              properties:
+                old_password:
+                  type: string
+                  format: password
+                  example: oldpassword123
+                new_password:
+                  type: string
+                  format: password
+                  example: newpassword123
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    nullable: true
+
+  /script-categories:
+    get:
+      tags:
+        - Category
+      summary: 获取脚本分类列表
+      description: 获取所有脚本分类
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 1
+                        name:
+                          type: string
+                          example: 监控告警
+                        description:
+                          type: string
+                          example: 系统监控和告警相关脚本
+                        color:
+                          type: string
+                          example: blue
+                        sort_order:
+                          type: integer
+                          example: 1
+                        script_count:
+                          type: integer
+                          example: 3
+    post:
+      tags:
+        - Category
+      summary: 创建脚本分类
+      description: 创建新的脚本分类
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  example: 监控告警
+                description:
+                  type: string
+                  example: 系统监控和告警相关脚本
+                color:
+                  type: string
+                  default: blue
+                  example: blue
+                sort_order:
+                  type: integer
+                  default: 0
+                  example: 1
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      name:
+                        type: string
+                        example: 监控告警
+                      description:
+                        type: string
+                        example: 系统监控和告警相关脚本
+                      color:
+                        type: string
+                        example: blue
+                      sort_order:
+                        type: integer
+                        example: 1
+                      created_at:
+                        type: string
+                        example: 2026-01-28 14:30:00
+
+  /script-categories/{id}:
+    get:
+      tags:
+        - Category
+      summary: 获取脚本分类详情
+      description: 获取指定脚本分类的详细信息
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: 分类ID
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      name:
+                        type: string
+                        example: 监控告警
+                      description:
+                        type: string
+                        example: 系统监控和告警相关脚本
+                      color:
+                        type: string
+                        example: blue
+                      sort_order:
+                        type: integer
+                        example: 1
+                      created_at:
+                        type: string
+                        example: 2026-01-28 14:30:00
+                      updated_at:
+                        type: string
+                        example: 2026-01-28 14:30:00
+    put:
+      tags:
+        - Category
+      summary: 更新脚本分类
+      description: 更新脚本分类信息
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: 分类ID
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: 监控告警
+                description:
+                  type: string
+                  example: 系统监控和告警相关脚本
+                color:
+                  type: string
+                  example: blue
+                sort_order:
+                  type: integer
+                  example: 1
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      name:
+                        type: string
+                        example: 监控告警
+                      description:
+                        type: string
+                        example: 系统监控和告警相关脚本
+                      color:
+                        type: string
+                        example: blue
+                      sort_order:
+                        type: integer
+                        example: 1
+                      updated_at:
+                        type: string
+                        example: 2026-01-28 15:30:00
+    delete:
+      tags:
+        - Category
+      summary: 删除脚本分类
+      description: 删除指定脚本分类
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: 分类ID
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    nullable: true
+
+  /system-configs:
+    get:
+      tags:
+        - Config
+      summary: 获取系统配置
+      description: 获取系统配置列表
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: category
+          in: query
+          description: 配置分类
+          required: false
+          schema:
+            type: string
+            example: system
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 1
+                        config_key:
+                          type: string
+                          example: system.name
+                        config_value:
+                          type: string
+                          example: 运维任务调度系统
+                        config_type:
+                          type: string
+                          enum: [string, int, bool, json]
+                          example: string
+                        description:
+                          type: string
+                          example: 系统名称
+                        category:
+                          type: string
+                          example: system
+
+  /system-configs/{id}:
+    put:
+      tags:
+        - Config
+      summary: 更新系统配置
+      description: 更新单个系统配置项
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: 配置ID
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - config_value
+              properties:
+                config_value:
+                  type: string
+                  example: 运维任务调度系统
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      config_key:
+                        type: string
+                        example: system.name
+                      config_value:
+                        type: string
+                        example: 运维任务调度系统
+                      updated_at:
+                        type: string
+                        example: 2026-01-28 15:30:00
+
+  /system-configs/batch:
+    put:
+      tags:
+        - Config
+      summary: 批量更新系统配置
+      description: 批量更新多个系统配置项
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - configs
+              properties:
+                configs:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - id
+                      - config_value
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      config_value:
+                        type: string
+                        example: 运维任务调度系统
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      updated_count:
+                        type: integer
+                        example: 5
+
+  /auth/login:
+    post:
+      tags:
+        - Auth
+      summary: 用户登录
+      description: 用户登录获取访问令牌
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                  example: admin
+                password:
+                  type: string
+                  format: password
+                  example: admin123
+      responses:
+        '200':
+          description: 登录成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      token:
+                        type: string
+                        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                      refresh_token:
+                        type: string
+                        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                      user:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            example: 1
+                          username:
+                            type: string
+                            example: admin
+                          email:
+                            type: string
+                            example: admin@example.com
+                          role:
+                            type: string
+                            example: admin
+        '401':
+          description: 登录失败
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 401
+                  message:
+                    type: string
+                    example: 用户名或密码错误
+                  data:
+                    type: object
+                    nullable: true
+
+  /auth/logout:
+    post:
+      tags:
+        - Auth
+      summary: 用户登出
+      description: 用户登出清除令牌
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 登出成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    nullable: true
+
+  /auth/refresh:
+    post:
+      tags:
+        - Auth
+      summary: 刷新令牌
+      description: 使用刷新令牌获取新的访问令牌
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refresh_token
+              properties:
+                refresh_token:
+                  type: string
+                  example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+      responses:
+        '200':
+          description: 刷新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      token:
+                        type: string
+                        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                      refresh_token:
+                        type: string
+                        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+  /auth/me:
+    get:
+      tags:
+        - Auth
+      summary: 获取当前用户信息
+      description: 获取当前登录用户的信息
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      username:
+                        type: string
+                        example: admin
+                      email:
+                        type: string
+                        example: admin@example.com
+                      role:
+                        type: string
+                        enum: [admin, ops, readonly]
+                        example: admin
+                      status:
+                        type: string
+                        enum: [active, inactive]
+                        example: active
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT认证令牌，在请求头中传递：Authorization: Bearer {token}

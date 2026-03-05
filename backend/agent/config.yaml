@@ -1,0 +1,19 @@
+server:
+  url: http://localhost:8000
+  api_prefix: /api/v1
+  timeout: 30
+
+agent:
+  node_name: ""
+  ip: ""
+  environment: prod
+  tags: []
+
+heartbeat:
+  interval: 300
+
+task:
+  poll_interval: 10
+  script_dir: /tmp/agent_scripts
+  log_dir: /tmp/agent_logs
+  max_concurrent: 3
