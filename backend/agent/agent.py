@@ -39,6 +39,7 @@ class Config:
         self.ip = self.data.get('agent', {}).get('ip', '')
         self.environment = self.data.get('agent', {}).get('environment', 'prod')
         self.tags = self.data.get('agent', {}).get('tags', [])
+        self.token = self.data.get('agent', {}).get('token', '')
         
         self.heartbeat_interval = self.data.get('heartbeat', {}).get('interval', 300)
         
@@ -94,7 +95,8 @@ class Agent:
                 'node_name': self.config.node_name,
                 'ip': self.config.ip,
                 'environment': self.config.environment,
-                'tags': self.config.tags
+                'tags': self.config.tags,
+                'token': self.config.token
             }
             result = self.api_request('POST', '/agent/register', data=data)
             
@@ -139,12 +141,9 @@ class Agent:
             try:
                 if self.state.ws_connected and self.state.websocket:
                     async def send_heartbeat():
-                        await self.state.websocket.send_json({
-                            "type": "heartbeat",
-                            "cpu_usage": self._get_cpu_usage(),
-                            "memory_usage": self._get_memory_usage(),
-                            "disk_usage": self._get_disk_usage()
-                        })
+                        await self.state.websocket.send(json.dumps({
+                            "type": "heartbeat"
+                        }))
                     
                     try:
                         asyncio.run_coroutine_threadsafe(
@@ -160,48 +159,6 @@ class Agent:
                 logger.error(f"Heartbeat error: {e}")
             
             time.sleep(self.config.heartbeat_interval)
-    
-    def _get_cpu_usage(self) -> str:
-        try:
-            result = subprocess.run(['top', '-bn1'], capture_output=True, text=True, timeout=5)
-            lines = result.stdout.split('\n')
-            for line in lines:
-                if 'Cpu(s)' in line:
-                    parts = line.split(',')
-                    for part in parts:
-                        if 'id' in part:
-                            idle = float(part.strip().split()[0])
-                            used = 100 - idle
-                            return f"{used:.1f}"
-        except Exception:
-            pass
-        return "0.0"
-    
-    def _get_memory_usage(self) -> str:
-        try:
-            result = subprocess.run(['free', '-m'], capture_output=True, text=True, timeout=5)
-            lines = result.stdout.split('\n')
-            if len(lines) > 1:
-                parts = lines[1].split()
-                total = int(parts[1])
-                used = int(parts[2])
-                if total > 0:
-                    return f"{(used / total * 100):.1f}"
-        except Exception:
-            pass
-        return "0.0"
-    
-    def _get_disk_usage(self) -> str:
-        try:
-            result = subprocess.run(['df', '-h', '/'], capture_output=True, text=True, timeout=5)
-            lines = result.stdout.split('\n')
-            if len(lines) > 1:
-                parts = lines[1].split()
-                if len(parts) >= 5:
-                    return parts[4].replace('%', '')
-        except Exception:
-            pass
-        return "0"
     
     async def ws_connect(self):
         ws_url = f"{self.config.ws_url}?node_id={self.state.node_id}&node_token={self.state.node_token}"
@@ -287,25 +244,33 @@ class Agent:
     def _run_script(self, task: Dict):
         execution_id = task.get('execution_id')
         script_id = task.get('script_id')
+        script_type = task.get('script_type', 'shell').lower()
         script_content = task.get('script_content')
-        parameters = task.get('parameters', {})
+        parameters = task.get('parameters') or {}
         
         logger.info(f"Executing task: {execution_id}")
         start_time = time.time()
         log_path = os.path.join(self.config.log_dir, f"{execution_id}.log")
         
         try:
-            script_path = os.path.join(self.config.script_dir, f"{execution_id}.sh")
-            
             rendered_content = self._render_script(script_content, parameters)
             
-            with open(script_path, 'w') as f:
-                f.write(rendered_content)
-            os.chmod(script_path, 0o755)
+            if script_type == 'python':
+                script_path = os.path.join(self.config.script_dir, f"{execution_id}.py")
+                with open(script_path, 'w') as f:
+                    f.write(rendered_content)
+                os.chmod(script_path, 0o755)
+                cmd = ['python3', script_path]
+            else:
+                script_path = os.path.join(self.config.script_dir, f"{execution_id}.sh")
+                with open(script_path, 'w') as f:
+                    f.write(rendered_content)
+                os.chmod(script_path, 0o755)
+                cmd = ['/bin/bash', script_path]
             
             with open(log_path, 'w') as log_file:
                 process = subprocess.Popen(
-                    ['/bin/bash', script_path],
+                    cmd,
                     stdout=log_file,
                     stderr=subprocess.STDOUT
                 )
@@ -330,9 +295,10 @@ class Agent:
             if execution_id in self.state.current_tasks:
                 del self.state.current_tasks[execution_id]
             
-            script_path = os.path.join(self.config.script_dir, f"{execution_id}.sh")
-            if os.path.exists(script_path):
-                os.remove(script_path)
+            for ext in ['.sh', '.py']:
+                script_path = os.path.join(self.config.script_dir, f"{execution_id}{ext}")
+                if os.path.exists(script_path):
+                    os.remove(script_path)
     
     def _render_script(self, script_content: str, parameters: Dict) -> str:
         result = script_content
@@ -346,7 +312,7 @@ class Agent:
         try:
             if self.state.ws_connected and self.state.websocket:
                 async def send_result():
-                    await self.state.websocket.send_json({
+                    await self.state.websocket.send(json.dumps({
                         "type": "task_result",
                         "execution_id": execution_id,
                         "status": status,
@@ -354,7 +320,7 @@ class Agent:
                         "log_content": log_content,
                         "error_message": error_message,
                         "duration": duration
-                    })
+                    }))
                 
                 asyncio.run_coroutine_threadsafe(
                     send_result(), 
@@ -371,6 +337,10 @@ class Agent:
         
         if not self.config.node_name or not self.config.ip:
             logger.error("node_name and ip must be configured")
+            return
+        
+        if not self.config.token:
+            logger.error("Token must be configured in config.yaml")
             return
         
         if not self._load_credentials():

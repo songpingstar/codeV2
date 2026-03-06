@@ -116,11 +116,9 @@
 | ip | VARCHAR(50) | NOT NULL | IP地址 |
 | environment | VARCHAR(20) | NOT NULL | 环境：dev/test/prod |
 | tags | TEXT | 标签（JSON数组） | |
+| node_token | VARCHAR(64) | NOT NULL | 节点认证Token |
 | status | VARCHAR(20) | NOT NULL, DEFAULT 'offline' | 状态：online/offline |
 | last_heartbeat | DATETIME | 最后心跳时间 | |
-| cpu_usage | VARCHAR(10) | CPU使用率 | |
-| memory_usage | VARCHAR(10) | 内存使用率 | |
-| disk_usage | VARCHAR(10) | 磁盘使用率 | |
 | created_at | DATETIME | NOT NULL, DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | DATETIME | NOT NULL, DEFAULT CURRENT_TIMESTAMP | 更新时间 |
 
@@ -132,7 +130,28 @@
 
 ---
 
-### 2.5 调度任务表 (scheduled_tasks)
+### 2.5 注册Token表 (registration_tokens)
+
+存储Agent预注册Token信息，用于Token认证注册流程。
+
+| 字段名 | 类型 | 约束 | 说明 |
+|--------|------|------|------|
+| id | INTEGER | PRIMARY KEY, AUTOINCREMENT | Token ID |
+| token | VARCHAR(64) | NOT NULL, UNIQUE | Token值（32字符，16字节十六进制） |
+| status | VARCHAR(20) | NOT NULL, DEFAULT 'pending' | 状态：pending（待使用）/ used（已使用）/ expired（已过期） |
+| expires_at | DATETIME | NOT NULL | 过期时间（默认24小时） |
+| used_at | DATETIME | 使用时间 | Token被使用的时间 |
+| created_at | DATETIME | NOT NULL, DEFAULT CURRENT_TIMESTAMP | 创建时间 |
+
+**索引**：
+- `idx_tokens_token`: token
+- `idx_tokens_status`: status
+
+**初始化**：系统首次启动时自动生成一个初始Token，有效期24小时。
+
+---
+
+### 2.6 调度任务表 (scheduled_tasks)
 
 存储调度任务信息。
 

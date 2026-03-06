@@ -1,12 +1,10 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 from typing import Dict
 import json
-import asyncio
 import logging
 
 from database import get_db
-from app.core.response import SuccessResponse
+from app.models import Node
 from app.services.agent_service import AgentWebSocketService
 
 logger = logging.getLogger("ws_agent")
@@ -27,6 +25,15 @@ class ConnectionManager:
         if node_id in self.active_connections:
             del self.active_connections[node_id]
             logger.info(f"Node {node_id} disconnected, total: {len(self.active_connections)}")
+            from app.core.datetime_utils import now_beijing
+            from database import get_db
+            db = next(get_db())
+            node = db.query(Node).filter(Node.id == node_id).first()
+            if node:
+                node.status = "offline"
+                node.last_heartbeat = now_beijing()
+                db.commit()
+                logger.info(f"Node {node_id} status updated to offline")
     
     async def send_message(self, node_id: int, message: dict) -> bool:
         if node_id in self.active_connections:
@@ -57,18 +64,19 @@ async def websocket_endpoint(
     node_token: str = Query(...)
 ):
     db = next(get_db())
-    service = AgentWebSocketService(db)
     
-    node = service.verify_node(node_id)
-    
+    node = db.query(Node).filter(Node.id == node_id).first()
     if not node:
+        logger.warning(f"WebSocket auth failed: node not found, node_id={node_id}")
         await websocket.close(code=4001, reason="Node not found")
         return
     
-    if node.status == "offline":
-        await websocket.close(code=4002, reason="Node is offline")
+    if node.node_token != node_token:
+        logger.warning(f"WebSocket auth failed: token mismatch")
+        await websocket.close(code=4001, reason="Invalid node_id or node_token")
         return
     
+    service = AgentWebSocketService(db)
     await manager.connect(node_id, websocket)
     
     try:
@@ -86,6 +94,7 @@ async def websocket_endpoint(
                 if msg_type == "ping":
                     await websocket.send_json({"type": "pong"})
                 elif msg_type == "heartbeat":
+                    logger.info(f"Received heartbeat from node {node_id}: {message}")
                     service.update_node_heartbeat(node_id)
                 elif msg_type == "task_result":
                     execution_id = message.get("execution_id")

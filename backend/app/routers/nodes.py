@@ -21,6 +21,7 @@ class NodeUpdate(BaseModel):
     ip: Optional[str] = None
     environment: Optional[str] = None
     tags: Optional[List[str]] = None
+    status: Optional[str] = None
 
 
 @router.get("")

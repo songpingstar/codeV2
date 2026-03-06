@@ -2,6 +2,7 @@ from .user import User
 from .script_category import ScriptCategory
 from .script import Script
 from .node import Node
+from .registration_token import RegistrationToken
 from .scheduled_task import ScheduledTask
 from .execution import Execution
 from .node_execution import NodeExecution
@@ -14,6 +15,7 @@ __all__ = [
     "ScriptCategory",
     "Script",
     "Node",
+    "RegistrationToken",
     "ScheduledTask",
     "Execution",
     "NodeExecution",

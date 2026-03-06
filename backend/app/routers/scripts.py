@@ -124,6 +124,7 @@ async def execute_script(
                 "execution_id": result["execution_id"],
                 "script_id": script.id,
                 "script_name": script.name,
+                "script_type": script.type,
                 "script_content": script.content,
                 "environment": request.environment if request else "prod",
                 "parameters": request.parameters if request else {}

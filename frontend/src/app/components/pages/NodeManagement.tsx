@@ -4,7 +4,6 @@ import {
   Search, 
   Server, 
   Edit2, 
-  Eye, 
   PowerOff,
   Power,
   Circle,
@@ -14,6 +13,7 @@ import {
   Wifi,
   WifiOff,
   AlertCircle,
+  Trash2,
 } from 'lucide-react';
 import { Card, CardContent } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
@@ -32,10 +32,22 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/app/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/app/components/ui/alert-dialog';
 import { Label } from '@/app/components/ui/label';
 import { Input } from '@/app/components/ui/input';
 import { NodeFormDialog } from '@/app/components/dialogs/NodeFormDialog';
 import { nodesApi } from '@/app/api/nodes';
+import { agentApi } from '@/app/api/agent';
+import { nowBeijing, formatDate } from '@/app/utils/datetime';
 
 interface Node {
   id: number;
@@ -45,9 +57,6 @@ interface Node {
   tags: string[];
   status: 'online' | 'offline';
   last_heartbeat: string;
-  cpu_usage?: number;
-  memory_usage?: number;
-  disk_usage?: number;
 }
 
 interface NodeStats {
@@ -76,7 +85,7 @@ export function NodeManagement({ onViewNode }: NodeManagementProps = {}) {
   const [statusFilter, setStatusFilter] = useState('all');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [formData, setFormData] = useState<NodeFormData>({
     name: '',
@@ -84,8 +93,25 @@ export function NodeManagement({ onViewNode }: NodeManagementProps = {}) {
     environment: 'dev',
     tags: '',
   });
+  const [generatedToken, setGeneratedToken] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const OFFLINE_THRESHOLD_MINUTES = 3;
+  
+  const isNodeOffline = (heartbeat: string | null): boolean => {
+    if (!heartbeat) return true;
+    const heartbeatTime = new Date(heartbeat);
+    const now = nowBeijing();
+    const diffMinutes = (now.getTime() - heartbeatTime.getTime()) / 1000 / 60;
+    return diffMinutes > OFFLINE_THRESHOLD_MINUTES;
+  };
+  
+  const getNodeStatus = (status: string, heartbeat: string | null): 'online' | 'offline' => {
+    if (status === 'offline') return 'offline';
+    if (isNodeOffline(heartbeat)) return 'offline';
+    return 'online';
+  };
 
   async function loadData() {
     try {
@@ -105,10 +131,26 @@ export function NodeManagement({ onViewNode }: NodeManagementProps = {}) {
     }
   }
 
-  async function handleDeleteNode(id: number) {
-    if (!confirm("确认删除该节点吗？")) return;
+  async function loadCurrentToken() {
     try {
-      await nodesApi.delete(id);
+      const token = await agentApi.getCurrentToken();
+      if (token.token) {
+        setGeneratedToken(token.token);
+      }
+    } catch (err: any) {
+      console.error("load token error:", err);
+    }
+  }
+
+  async function handleDeleteNode(id: number) {
+    setDeleteConfirmId(id);
+  }
+
+  async function handleDeleteConfirm() {
+    if (deleteConfirmId === null) return;
+    try {
+      await nodesApi.delete(deleteConfirmId);
+      setDeleteConfirmId(null);
       loadData();
     } catch (err: any) {
       console.error("delete error:", err);
@@ -123,6 +165,16 @@ export function NodeManagement({ onViewNode }: NodeManagementProps = {}) {
     } catch (err: any) {
       console.error("toggle status error:", err);
       setError(err.response?.data?.message || '切换状态失败');
+    }
+  }
+
+  async function handleGenerateToken() {
+    try {
+      const token = await agentApi.generateToken();
+      setGeneratedToken(token.token);
+    } catch (err: any) {
+      console.error("generate token error:", err);
+      setError(err.response?.data?.message || '生成Token失败');
     }
   }
 
@@ -161,14 +213,22 @@ export function NodeManagement({ onViewNode }: NodeManagementProps = {}) {
 
   useEffect(() => {
     loadData();
+    loadCurrentToken();
+    
+    const interval = setInterval(() => {
+      loadData();
+    }, 30000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   const filteredNodes = nodes.filter((node) => {
+    const effectiveStatus = getNodeStatus(node.status, node.last_heartbeat);
     const matchesSearch = 
       node.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       node.ip.includes(searchTerm);
     const matchesEnvironment = environmentFilter === 'all' || node.environment === environmentFilter;
-    const matchesStatus = statusFilter === 'all' || node.status === statusFilter;
+    const matchesStatus = statusFilter === 'all' || effectiveStatus === statusFilter;
     return matchesSearch && matchesEnvironment && matchesStatus;
   });
 
@@ -228,30 +288,31 @@ export function NodeManagement({ onViewNode }: NodeManagementProps = {}) {
     });
     setIsEditDialogOpen(true);
   };
-
-  const handleViewNode = (node: Node) => {
-    setSelectedNode(node);
-    setIsViewDialogOpen(true);
-    if (onViewNode) {
-      onViewNode(node.id);
-    }
-  };
-
+  
   const getHeartbeatStatus = (heartbeat: string, status: string) => {
     if (status === 'offline') {
       return <span className="text-gray-400 text-xs">离线</span>;
     }
     
-    const heartbeatTime = new Date(heartbeat);
-    const now = new Date();
-    const diffMinutes = Math.floor((now.getTime() - heartbeatTime.getTime()) / 1000 / 60);
+    if (!heartbeat) {
+      return <span className="text-gray-400 text-xs">无心跳</span>;
+    }
     
-    if (diffMinutes < 1) {
+    const heartbeatTime = new Date(heartbeat);
+    const now = nowBeijing();
+    const diffSeconds = Math.floor((now.getTime() - heartbeatTime.getTime()) / 1000);
+    
+    if (diffSeconds < 60) {
       return <span className="text-green-600 text-xs">刚刚</span>;
-    } else if (diffMinutes < 60) {
+    } else if (diffSeconds < 3600) {
+      const diffMinutes = Math.floor(diffSeconds / 60);
       return <span className="text-green-600 text-xs">{diffMinutes}分钟前</span>;
+    } else if (diffSeconds < 86400) {
+      const diffHours = Math.floor(diffSeconds / 3600);
+      return <span className="text-yellow-600 text-xs">{diffHours}小时前</span>;
     } else {
-      return <span className="text-yellow-600 text-xs">{Math.floor(diffMinutes / 60)}小时前</span>;
+      const diffDays = Math.floor(diffSeconds / 86400);
+      return <span className="text-red-600 text-xs">{diffDays}天前</span>;
     }
   };
 
@@ -424,27 +485,29 @@ export function NodeManagement({ onViewNode }: NodeManagementProps = {}) {
                     </td>
                   </tr>
                 ) : (
-                  filteredNodes.map((node) => (
+                  filteredNodes.map((node) => {
+                    const effectiveStatus = getNodeStatus(node.status, node.last_heartbeat);
+                    return (
                     <tr
                       key={node.id}
                       className={`border-b border-gray-100 transition-colors ${
-                        node.status === 'offline' 
+                        effectiveStatus === 'offline' 
                           ? 'bg-gray-50/50' 
                           : 'hover:bg-gray-50'
                       }`}
                     >
                       <td className="py-4 px-4">
                         <div className="flex items-center gap-2">
-                          <Server className={`w-4 h-4 ${node.status === 'offline' ? 'text-gray-400' : 'text-blue-600'}`} />
-                          <span className={`text-sm font-medium ${node.status === 'offline' ? 'text-gray-400' : 'text-gray-900'}`}>
+                          <Server className={`w-4 h-4 ${effectiveStatus === 'offline' ? 'text-gray-400' : 'text-blue-600'}`} />
+                          <span className={`text-sm font-medium ${effectiveStatus === 'offline' ? 'text-gray-400' : 'text-gray-900'}`}>
                             {node.name}
                           </span>
                         </div>
                       </td>
                       <td className="py-4 px-4">
                         <div className="flex items-center gap-2">
-                          <MapPin className={`w-4 h-4 ${node.status === 'offline' ? 'text-gray-300' : 'text-gray-400'}`} />
-                          <code className={`text-xs font-mono ${node.status === 'offline' ? 'text-gray-400' : 'text-gray-600'}`}>
+                          <MapPin className={`w-4 h-4 ${effectiveStatus === 'offline' ? 'text-gray-300' : 'text-gray-400'}`} />
+                          <code className={`text-xs font-mono ${effectiveStatus === 'offline' ? 'text-gray-400' : 'text-gray-600'}`}>
                             {node.ip}
                           </code>
                         </div>
@@ -459,7 +522,7 @@ export function NodeManagement({ onViewNode }: NodeManagementProps = {}) {
                               <span
                                 key={index}
                                 className={`inline-flex items-center px-2 py-0.5 rounded text-xs ${
-                                  node.status === 'offline'
+                                  effectiveStatus === 'offline'
                                     ? 'bg-gray-100 text-gray-400'
                                     : 'bg-gray-100 text-gray-600'
                                 }`}
@@ -477,29 +540,16 @@ export function NodeManagement({ onViewNode }: NodeManagementProps = {}) {
                         </div>
                       </td>
                       <td className="py-4 px-4">
-                        {getStatusBadge(node.status)}
+                        {getStatusBadge(effectiveStatus)}
                       </td>
                       <td className="py-4 px-4">
                         <div className="flex items-center gap-2">
-                          <Clock className={`w-4 h-4 ${node.status === 'offline' ? 'text-gray-300' : 'text-gray-400'}`} />
-                          <div className="flex flex-col">
-                            <span className={`text-xs ${node.status === 'offline' ? 'text-gray-400' : 'text-gray-600'}`}>
-                              {node.last_heartbeat}
-                            </span>
-                            {getHeartbeatStatus(node.last_heartbeat, node.status)}
-                          </div>
+                          <Clock className={`w-4 h-4 ${effectiveStatus === 'offline' ? 'text-gray-300' : 'text-gray-400'}`} />
+                          {getHeartbeatStatus(node.last_heartbeat, effectiveStatus)}
                         </div>
                       </td>
                       <td className="py-4 px-4">
                         <div className="flex items-center justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleViewNode(node)}
-                            className="h-8 px-3 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -511,23 +561,31 @@ export function NodeManagement({ onViewNode }: NodeManagementProps = {}) {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleToggleStatus(node.id, node.status)}
+                            onClick={() => handleToggleStatus(node.id, effectiveStatus)}
                             className={`h-8 px-3 ${
-                              node.status === 'online'
+                              effectiveStatus === 'online'
                                 ? 'text-red-600 hover:text-red-700 hover:bg-red-50'
                                 : 'text-green-600 hover:text-green-700 hover:bg-green-50'
                             }`}
                           >
-                            {node.status === 'online' ? (
+                            {effectiveStatus === 'online' ? (
                               <PowerOff className="w-4 h-4" />
                             ) : (
                               <Power className="w-4 h-4" />
                             )}
                           </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteNode(node.id)}
+                            className="h-8 px-3 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
                         </div>
                       </td>
                     </tr>
-                  ))
+                  )})
                 )}
               </tbody>
             </table>
@@ -556,9 +614,8 @@ export function NodeManagement({ onViewNode }: NodeManagementProps = {}) {
       <NodeFormDialog
         isOpen={isAddDialogOpen}
         onClose={() => setIsAddDialogOpen(false)}
-        onSubmit={handleSubmitAdd}
-        formData={formData}
-        setFormData={setFormData}
+        onGenerateToken={handleGenerateToken}
+        generatedToken={generatedToken}
         mode="add"
       />
 
@@ -572,110 +629,22 @@ export function NodeManagement({ onViewNode }: NodeManagementProps = {}) {
         mode="edit"
       />
 
-      {/* View Node Dialog */}
-      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Server className="w-5 h-5 text-blue-600" />
-              {selectedNode?.name}
-            </DialogTitle>
-            <DialogDescription>
-              节点详细信息
-            </DialogDescription>
-          </DialogHeader>
-          {selectedNode && (
-            <div className="space-y-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <p className="text-xs text-gray-500">IP 地址</p>
-                  <code className="text-sm font-mono text-gray-900">{selectedNode.ip}</code>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-gray-500">所属环境</p>
-                  <div>{getEnvironmentBadge(selectedNode.environment)}</div>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-gray-500">当前状态</p>
-                  <div>{getStatusBadge(selectedNode.status)}</div>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-gray-500">最近心跳</p>
-                  <p className="text-sm text-gray-900">{selectedNode.lastHeartbeat}</p>
-                </div>
-              </div>
-
-              <div className="pt-2 border-t">
-                <p className="text-xs text-gray-500 mb-2">节点标签</p>
-                <div className="flex flex-wrap gap-2">
-                  {selectedNode.tags.length > 0 ? (
-                    selectedNode.tags.map((tag, index) => (
-                      <span
-                        key={index}
-                        className="inline-flex items-center px-2.5 py-1 rounded text-xs bg-gray-100 text-gray-700"
-                      >
-                        <Tag className="w-3 h-3 mr-1" />
-                        {tag}
-                      </span>
-                    ))
-                  ) : (
-                    <span className="text-sm text-gray-400">暂无标签</span>
-                  )}
-                </div>
-              </div>
-
-              {selectedNode.status === 'online' && (
-                <div className="pt-2 border-t">
-                  <p className="text-xs text-gray-500 mb-3">系统资源</p>
-                  <div className="space-y-3">
-                    <div>
-                      <div className="flex justify-between text-xs mb-1">
-                        <span className="text-gray-600">CPU 使用率</span>
-                        <span className="font-medium text-gray-900">{selectedNode.cpu}</span>
-                      </div>
-                      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-blue-500 rounded-full"
-                          style={{ width: selectedNode.cpu }}
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-xs mb-1">
-                        <span className="text-gray-600">内存使用率</span>
-                        <span className="font-medium text-gray-900">{selectedNode.memory}</span>
-                      </div>
-                      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-green-500 rounded-full"
-                          style={{ width: selectedNode.memory }}
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-xs mb-1">
-                        <span className="text-gray-600">磁盘使用率</span>
-                        <span className="font-medium text-gray-900">{selectedNode.disk}</span>
-                      </div>
-                      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-yellow-500 rounded-full"
-                          style={{ width: selectedNode.disk }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
-              关闭
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AlertDialog open={deleteConfirmId !== null} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认删除</AlertDialogTitle>
+            <AlertDialogDescription>
+              确定要删除该节点吗？此操作无法撤销。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-red-600 hover:bg-red-700">
+              删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

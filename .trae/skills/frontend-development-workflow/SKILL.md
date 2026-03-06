@@ -1,6 +1,6 @@
 ---
 name: "frontend-development-workflow"
-description: "引导完整的前端开发流程，从设计文档开始。当开始前端开发或用户要求生成前端代码结构时调用。"
+description: "引导完整的前端开发流程，从设计到代码实现。包括新功能开发、问题调试、代码重构、性能优化等。适用于前端任何代码变更时调用。"
 ---
 
 # 前端开发工作流
@@ -14,6 +14,10 @@ description: "引导完整的前端开发流程，从设计文档开始。当开
 - 前端功能开发
 - 前端与后端API集成
 - 前端UI组件创建
+- 用户要求调试、分析前端问题
+- 用户要求清理、优化、重构前端代码
+
+**⚠️ 关键触发条件：在修改任何前端代码前，必须先检查是否符合本工作流规范**
 
 ## 工作流程
 
@@ -103,6 +107,8 @@ frontend/src/
 - 页面组件：`PascalCase`（如 `ScriptManagement.tsx`）
 - 工具函数：`camelCase`（如 `formatDate.ts`）
 - CSS类名：`kebab-case`（如 `text-red-600`）
+
+**每次新增组件或者改动前端页面代码时，都需要检查是否符合目录结构规范和命名规范。**
 
 ---
 
@@ -251,58 +257,6 @@ async function handleSubmit(e: FormEvent) {
 
 **禁止使用系统原生弹框，必须使用AlertDialog：**
 
-```typescript
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/app/components/ui/alert-dialog';
-
-// 状态
-const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
-
-// 点击删除
-function handleDeleteClick(id: number) {
-  setDeleteConfirmId(id);
-}
-
-// 确认删除
-async function handleDeleteConfirm() {
-  if (!deleteConfirmId) return;
-  try {
-    await scriptsApi.delete(deleteConfirmId);
-    loadData();
-  } catch (err) {
-    console.error("delete error:", err);
-  } finally {
-    setDeleteConfirmId(null);
-  }
-}
-
-// 页面中添加对话框
-<AlertDialog open={deleteConfirmId !== null} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
-  <AlertDialogContent>
-    <AlertDialogHeader>
-      <AlertDialogTitle>确认删除</AlertDialogTitle>
-      <AlertDialogDescription>
-        确定要删除该记录吗？此操作无法撤销。
-      </AlertDialogDescription>
-    </AlertDialogHeader>
-    <AlertDialogFooter>
-      <AlertDialogCancel>取消</AlertDialogCancel>
-      <AlertDialogAction onClick={handleDeleteConfirm} className="bg-red-600 hover:bg-red-700">
-        删除
-      </AlertDialogAction>
-    </AlertDialogFooter>
-  </AlertDialogContent>
-</AlertDialog>
-```
-
 ---
 
 ### 第七阶段：样式与响应式
@@ -383,6 +337,46 @@ pnpm lint
 7. **时间显示规范：** 所有时间显示必须为北京时间（UTC+8），格式为 `YYYY-MM-DD HH:mm:ss`
 8. **页面状态持久化：** 使用 URL hash 保持当前页面状态，刷新页面时保持当前页面
 
+
+## 时间处理最佳实践
+
+### 统一使用北京时间
+
+前端在处理时间时必须统一使用北京时间（UTC+8），确保与后端保持一致。
+
+### 实现方式
+
+1. **创建时间工具模块** `src/app/utils/datetime.ts`：
+```typescript
+export function nowBeijing(): Date {
+  const now = new Date();
+  const beijingOffset = 8 * 60 * 60 * 1000;
+  const utc = now.getTime() + now.getTimezoneOffset() * 60 * 1000;
+  return new Date(utc + beijingOffset);
+}
+
+export function formatDate(dateStr: string): string {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  date.setHours(date.getHours() + 8);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+```
+
+2. **使用场景**：
+   - 时间计算/比较：`const now = nowBeijing()`（如心跳超时判断）
+   - 时间显示：`<span>{formatDate(node.last_heartbeat)}</span>`
+
+3. **注意事项**：
+   - 后端返回的 ISO 字符串已包含时区信息，直接用 `new Date()` 解析
+   - 本地时间比较用 `nowBeijing()`，显示用 `formatDate()`
+
 ## 页面状态持久化
 
 使用 URL hash 保存当前访问的页面，刷新时直接定位到之前页面：
@@ -403,32 +397,6 @@ export default function App() {
   }, [activeMenu]);
 }
 ```
-
-## 时间格式化工具函数
-
-在需要显示时间的页面中，创建 `formatDate` 工具函数：
-
-```typescript
-function formatDate(dateStr: string) {
-  if (!dateStr) return '';
-  const date = new Date(dateStr);
-  date.setHours(date.getHours() + 8); // 转换为北京时间
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  const seconds = String(date.getSeconds()).padStart(2, '0');
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-}
-```
-
-使用示例：
-```typescript
-<span>{formatDate(script.updateTime)}</span>
-```
-
----
 
 ## 参考文档
 

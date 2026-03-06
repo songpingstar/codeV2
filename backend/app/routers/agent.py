@@ -2,17 +2,21 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from typing import List, Optional
 from sqlalchemy.orm import Session
-from sqlalchemy.sql import func
 import logging
+import secrets
 
 from database import get_db
 from app.core.response import SuccessResponse
 from app.models import Node
-from app.core.exceptions import NotFoundError
+from app.services.agent_service import AgentService
 
 logger = logging.getLogger("agent")
 
 router = APIRouter(prefix="/agent", tags=["Agent"])
+
+
+class AgentTokenRequest(BaseModel):
+    pass
 
 
 class AgentRegisterRequest(BaseModel):
@@ -20,14 +24,12 @@ class AgentRegisterRequest(BaseModel):
     ip: str
     environment: str
     tags: Optional[List[str]] = None
+    token: str
 
 
 class AgentHeartbeatRequest(BaseModel):
     node_id: int
     node_token: str
-    cpu_usage: Optional[str] = None
-    memory_usage: Optional[str] = None
-    disk_usage: Optional[str] = None
 
 
 class AgentTasksRequest(BaseModel):
@@ -45,27 +47,52 @@ class AgentTaskResultRequest(BaseModel):
     duration: Optional[int] = None
 
 
+@router.post("/tokens")
+async def generate_token(request: AgentTokenRequest, db: Session = Depends(get_db)):
+    service = AgentService(db)
+    token = service.generate_token()
+    
+    return SuccessResponse.create(data={
+        "token": token
+    })
+
+
+@router.get("/tokens")
+async def get_current_token(db: Session = Depends(get_db)):
+    service = AgentService(db)
+    token = service.get_current_token()
+    
+    return SuccessResponse.create(data={
+        "token": token
+    })
+
+
 @router.post("/register")
 async def agent_register(request: AgentRegisterRequest, db: Session = Depends(get_db)):
     import secrets
     
     try:
-        logger.info(f"Register request: {request}")
+        service = AgentService(db)
+        reg_token = service.validate_token(request.token)
+        
+        if not reg_token:
+            return SuccessResponse.create(code=400, message="Invalid or expired token", data=None)
+        
+        service.consume_token(request.token)
+        
+        node_token = secrets.token_hex(16)
         
         node = Node(
             name=request.node_name,
             ip=request.ip,
             environment=request.environment,
             tags=",".join(request.tags) if request.tags else "",
+            node_token=node_token,
             status="online"
         )
         db.add(node)
         db.commit()
         db.refresh(node)
-        
-        node_token = secrets.token_hex(16)
-        
-        logger.info(f"Node registered successfully: id={node.id}")
         
         return SuccessResponse.create(data={
             "node_id": node.id,
@@ -78,17 +105,17 @@ async def agent_register(request: AgentRegisterRequest, db: Session = Depends(ge
 
 @router.post("/heartbeat")
 async def agent_heartbeat(request: AgentHeartbeatRequest, db: Session = Depends(get_db)):
-    from datetime import datetime
+    from app.core.datetime_utils import now_beijing
     
     node = db.query(Node).filter(Node.id == request.node_id).first()
     if not node:
         return SuccessResponse.create(data={"message": "Node not found"})
     
+    if node.node_token != request.node_token:
+        return SuccessResponse.create(code=401, message="Invalid node_token")
+    
     node.status = "online"
-    node.last_heartbeat = datetime.now()
-    node.cpu_usage = request.cpu_usage
-    node.memory_usage = request.memory_usage
-    node.disk_usage = request.disk_usage
+    node.last_heartbeat = now_beijing()
     
     db.commit()
     
@@ -102,6 +129,13 @@ async def agent_get_tasks(
     db: Session = Depends(get_db)
 ):
     from app.models import NodeExecution, Execution
+    
+    node = db.query(Node).filter(Node.id == node_id).first()
+    if not node:
+        return SuccessResponse.create(data=[])
+    
+    if node.node_token != node_token:
+        return SuccessResponse.create(code=401, message="Invalid node_token")
     
     node_executions = db.query(NodeExecution).join(
         Execution, NodeExecution.execution_id == Execution.execution_id
@@ -139,6 +173,13 @@ async def agent_report_result(
 ):
     from datetime import datetime
     from app.models import Execution, NodeExecution
+    
+    node = db.query(Node).filter(Node.id == request.node_id).first()
+    if not node:
+        return SuccessResponse.create(data={"message": "Node not found"})
+    
+    if node.node_token != request.node_token:
+        return SuccessResponse.create(code=401, message="Invalid node_token")
     
     node_exec = db.query(NodeExecution).filter(
         NodeExecution.execution_id == execution_id,

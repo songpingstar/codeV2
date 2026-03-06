@@ -10,9 +10,11 @@ import {
   SelectValue,
 } from '@/app/components/ui/select';
 import { executionsApi } from '@/app/api/executions';
+import { formatDate } from '@/app/utils/datetime';
 
 interface ExecutionRecord {
   id: string;
+  execution_id: string;
   execution_time: string;
   script_name: string;
   script_id: number;
@@ -50,10 +52,15 @@ export function ExecutionHistory({ onViewLog }: ExecutionHistoryProps) {
       setLoading(true);
       setError('');
       const [recordsRes, statsRes] = await Promise.all([
-        executionsApi.getList({ page, size: 100 }),
+        executionsApi.getList({ page, size: 8 }),
         executionsApi.getStats()
       ]);
-      setRecords(recordsRes.items || []);
+      const items = (recordsRes.items || []).map((item: any) => ({
+        ...item,
+        id: item.execution_id,
+        execution_time: item.started_at
+      }));
+      setRecords(items);
       setStats(statsRes);
       setTotal(recordsRes.total || 0);
     } catch (err: any) {
@@ -123,8 +130,8 @@ export function ExecutionHistory({ onViewLog }: ExecutionHistoryProps) {
   };
 
   const formatDuration = (seconds: number) => {
-    if (seconds < 60) {
-      return `${seconds}秒`;
+    if (!seconds || seconds < 60) {
+      return `${seconds || 0}秒`;
     }
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
@@ -301,7 +308,7 @@ export function ExecutionHistory({ onViewLog }: ExecutionHistoryProps) {
                       <td className="py-4 px-4">
                         <div className="flex items-center gap-2 text-sm text-gray-900">
                           <Clock className="w-4 h-4 text-gray-400" />
-                          {record.execution_time}
+                          {formatDate(record.execution_time)}
                         </div>
                       </td>
                       <td className="py-4 px-4">
@@ -349,16 +356,29 @@ export function ExecutionHistory({ onViewLog }: ExecutionHistoryProps) {
           </div>
 
           {/* Pagination Info */}
-          {filteredRecords.length > 0 && (
+          {total > 0 && (
             <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
               <div className="text-sm text-gray-500">
-                显示 {filteredRecords.length} 条记录，共 {records.length} 条
+                显示 {filteredRecords.length} 条记录，共 {total} 条
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" disabled>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  disabled={page <= 1}
+                  onClick={() => setPage(page - 1)}
+                >
                   上一页
                 </Button>
-                <Button variant="outline" size="sm" disabled>
+                <span className="flex items-center px-2 text-sm text-gray-600">
+                  {page} / {Math.ceil(total / 8)}
+                </span>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  disabled={page >= Math.ceil(total / 8)}
+                  onClick={() => setPage(page + 1)}
+                >
                   下一页
                 </Button>
               </div>

@@ -31,8 +31,15 @@ def init_db():
     with engine.connect() as conn:
         conn.execute(text("PRAGMA journal_mode=WAL"))
         conn.commit()
+        
+        result = conn.execute(text("PRAGMA table_info(nodes)")).fetchall()
+        columns = [row[1] for row in result]
+        if 'node_token' not in columns:
+            conn.execute(text("ALTER TABLE nodes ADD COLUMN node_token VARCHAR(64) NOT NULL DEFAULT ''"))
+            conn.commit()
+            print("nodes表已添加node_token字段")
     
-    from app.models import ScriptCategory
+    from app.models import ScriptCategory, RegistrationToken
     from sqlalchemy.orm import Session
     
     session = Session(bind=engine)
@@ -48,5 +55,20 @@ def init_db():
             session.add_all(categories)
             session.commit()
             print("初始脚本分类数据已创建")
+        
+        has_token = session.query(RegistrationToken).first()
+        if not has_token:
+            from datetime import datetime, timedelta
+            import secrets
+            token = secrets.token_hex(16)
+            expires_at = datetime.now() + timedelta(hours=24)
+            reg_token = RegistrationToken(
+                token=token,
+                status="pending",
+                expires_at=expires_at
+            )
+            session.add(reg_token)
+            session.commit()
+            print(f"初始Token已创建: {token}")
     finally:
         session.close()

@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from app.models import Node
 from app.core.exceptions import NotFoundError
+from app.core.datetime_utils import to_iso_string
 
 
 class NodeService:
@@ -41,10 +42,7 @@ class NodeService:
                     "environment": item.environment,
                     "tags": item.tags.split(",") if item.tags else [],
                     "status": item.status,
-                    "last_heartbeat": item.last_heartbeat.isoformat() if item.last_heartbeat else None,
-                    "cpu_usage": item.cpu_usage,
-                    "memory_usage": item.memory_usage,
-                    "disk_usage": item.disk_usage
+                    "last_heartbeat": to_iso_string(item.last_heartbeat)
                 }
                 for item in items
             ]
@@ -62,12 +60,9 @@ class NodeService:
             "environment": node.environment,
             "tags": node.tags.split(",") if node.tags else [],
             "status": node.status,
-            "last_heartbeat": node.last_heartbeat.isoformat() if node.last_heartbeat else None,
-            "cpu_usage": node.cpu_usage,
-            "memory_usage": node.memory_usage,
-            "disk_usage": node.disk_usage,
-            "created_at": node.created_at.isoformat() if node.created_at else None,
-            "updated_at": node.updated_at.isoformat() if node.updated_at else None
+            "last_heartbeat": to_iso_string(node.last_heartbeat),
+            "created_at": to_iso_string(node.created_at),
+            "updated_at": to_iso_string(node.updated_at)
         }
     
     def create_node(self, node_data: dict) -> dict:
@@ -86,7 +81,7 @@ class NodeService:
             "environment": node.environment,
             "tags": node.tags.split(",") if node.tags else [],
             "status": node.status,
-            "created_at": node.created_at.isoformat() if node.created_at else None
+            "created_at": to_iso_string(node.created_at)
         }
     
     def update_node(self, node_id: int, node_data: dict) -> dict:
@@ -110,7 +105,7 @@ class NodeService:
             "ip": node.ip,
             "environment": node.environment,
             "tags": node.tags.split(",") if node.tags else [],
-            "updated_at": node.updated_at.isoformat() if node.updated_at else None
+            "updated_at": to_iso_string(node.updated_at)
         }
     
     def delete_node(self, node_id: int) -> None:

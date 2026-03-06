@@ -4,6 +4,7 @@ import { Card, CardContent } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { copyToClipboard } from '@/app/utils/clipboard';
 import { executionsApi } from '@/app/api/executions';
+import { formatDate } from '@/app/utils/datetime';
 
 interface LogDetailProps {
   recordId: string;
@@ -12,6 +13,7 @@ interface LogDetailProps {
 
 interface ExecutionDetail {
   id: string;
+  execution_id: string;
   script_name: string;
   script_id: number;
   executor: string;
@@ -24,6 +26,13 @@ interface ExecutionDetail {
     id: number;
     name: string;
     ip: string;
+  }>;
+  node_executions?: Array<{
+    id: number;
+    node_id: number;
+    node_name: string;
+    ip?: string;
+    status: string;
   }>;
   parameters?: Array<{
     key: string;
@@ -44,14 +53,28 @@ export function LogDetail({ recordId, onBack }: LogDetailProps) {
       setLoading(true);
       setError('');
       const detailRes = await executionsApi.getDetail(recordId);
-      setExecution(detailRes);
       
-      // 获取第一个节点的日志
-      if (detailRes.nodes && detailRes.nodes.length > 0) {
-        const firstNode = detailRes.nodes[0];
+      const nodes = (detailRes.node_executions || []).map((ne: any) => ({
+        id: ne.node_id,
+        name: ne.node_name,
+        ip: ''
+      }));
+      
+      const transformedExecution = {
+        ...detailRes,
+        id: detailRes.execution_id,
+        execution_time: detailRes.started_at,
+        completion_time: detailRes.completed_at,
+        nodes: nodes
+      };
+      
+      setExecution(transformedExecution);
+      
+      if (nodes.length > 0) {
+        const firstNode = nodes[0];
         setSelectedNodeId(firstNode.id);
         const logsRes = await executionsApi.getLogs(recordId, firstNode.id);
-        setLogs(logsRes || '');
+        setLogs(logsRes.log_content || '');
       }
     } catch (err: any) {
       console.error("load error:", err);
@@ -65,7 +88,7 @@ export function LogDetail({ recordId, onBack }: LogDetailProps) {
     try {
       setSelectedNodeId(nodeId);
       const logsRes = await executionsApi.getLogs(recordId, nodeId);
-      setLogs(logsRes || '');
+      setLogs(logsRes.log_content || '');
     } catch (err: any) {
       console.error("load logs error:", err);
       setError(err.response?.data?.message || '加载日志失败');
@@ -159,8 +182,8 @@ export function LogDetail({ recordId, onBack }: LogDetailProps) {
   };
 
   const formatDuration = (seconds: number) => {
-    if (seconds < 60) {
-      return `${seconds}秒`;
+    if (!seconds || seconds < 60) {
+      return `${seconds || 0}秒`;
     }
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
@@ -265,14 +288,14 @@ export function LogDetail({ recordId, onBack }: LogDetailProps) {
                   <Clock className="w-4 h-4 text-gray-400 mt-0.5" />
                   <div className="flex-1">
                     <p className="text-xs text-gray-500">开始时间</p>
-                    <p className="text-sm text-gray-900 mt-0.5">{execution.execution_time}</p>
+                    <p className="text-sm text-gray-900 mt-0.5">{formatDate(execution.execution_time)}</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
                   <Clock className="w-4 h-4 text-gray-400 mt-0.5" />
                   <div className="flex-1">
                     <p className="text-xs text-gray-500">结束时间</p>
-                    <p className="text-sm text-gray-900 mt-0.5">{execution.completion_time || '-'}</p>
+                    <p className="text-sm text-gray-900 mt-0.5">{execution.completion_time ? formatDate(execution.completion_time) : '-'}</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">

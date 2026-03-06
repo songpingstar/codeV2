@@ -338,13 +338,13 @@ export function NodeDetail({ nodeId, onBack }: NodeDetailProps) {
                         <span className="text-sm font-medium text-gray-700">CPU 使用率</span>
                       </div>
                       <span className="text-sm font-bold text-gray-900">
-                        {node.cpu_usage !== undefined ? `${node.cpu_usage.toFixed(1)}%` : '-'}
+                        {node.cpu_usage != null ? `${node.cpu_usage.toFixed(1)}%` : '-'}
                       </span>
                     </div>
                     <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full transition-all"
-                        style={{ width: node.cpu_usage !== undefined ? `${node.cpu_usage}%` : '0%' }}
+                        style={{ width: node.cpu_usage != null ? `${node.cpu_usage}%` : '0%' }}
                       />
                     </div>
                   </div>
@@ -357,13 +357,13 @@ export function NodeDetail({ nodeId, onBack }: NodeDetailProps) {
                         <span className="text-sm font-medium text-gray-700">内存使用率</span>
                       </div>
                       <span className="text-sm font-bold text-gray-900">
-                        {node.memory_usage !== undefined ? `${node.memory_usage.toFixed(1)}%` : '-'}
+                        {node.memory_usage != null ? `${node.memory_usage.toFixed(1)}%` : '-'}
                       </span>
                     </div>
                     <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-gradient-to-r from-green-500 to-green-600 rounded-full transition-all"
-                        style={{ width: node.memory_usage !== undefined ? `${node.memory_usage}%` : '0%' }}
+                        style={{ width: node.memory_usage != null ? `${node.memory_usage}%` : '0%' }}
                       />
                     </div>
                   </div>
@@ -376,13 +376,13 @@ export function NodeDetail({ nodeId, onBack }: NodeDetailProps) {
                         <span className="text-sm font-medium text-gray-700">磁盘使用率</span>
                       </div>
                       <span className="text-sm font-bold text-gray-900">
-                        {node.disk_usage !== undefined ? `${node.disk_usage.toFixed(1)}%` : '-'}
+                        {node.disk_usage != null ? `${node.disk_usage.toFixed(1)}%` : '-'}
                       </span>
                     </div>
                     <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-full transition-all"
-                        style={{ width: node.disk_usage !== undefined ? `${node.disk_usage}%` : '0%' }}
+                        style={{ width: node.disk_usage != null ? `${node.disk_usage}%` : '0%' }}
                       />
                     </div>
                   </div>
@@ -450,19 +450,19 @@ export function NodeDetail({ nodeId, onBack }: NodeDetailProps) {
                 <div className="flex items-center justify-between p-2 bg-blue-50 rounded">
                   <span className="text-xs text-blue-700">CPU</span>
                   <span className="text-sm font-bold text-blue-900">
-                    {node.cpu_usage !== undefined ? `${node.cpu_usage.toFixed(1)}%` : '-'}
+                    {node.cpu_usage != null ? `${node.cpu_usage.toFixed(1)}%` : '-'}
                   </span>
                 </div>
                 <div className="flex items-center justify-between p-2 bg-green-50 rounded">
                   <span className="text-xs text-green-700">内存</span>
                   <span className="text-sm font-bold text-green-900">
-                    {node.memory_usage !== undefined ? `${node.memory_usage.toFixed(1)}%` : '-'}
+                    {node.memory_usage != null ? `${node.memory_usage.toFixed(1)}%` : '-'}
                   </span>
                 </div>
                 <div className="flex items-center justify-between p-2 bg-yellow-50 rounded">
                   <span className="text-xs text-yellow-700">磁盘</span>
                   <span className="text-sm font-bold text-yellow-900">
-                    {node.disk_usage !== undefined ? `${node.disk_usage.toFixed(1)}%` : '-'}
+                    {node.disk_usage != null ? `${node.disk_usage.toFixed(1)}%` : '-'}
                   </span>
                 </div>
                 <div className="flex items-center justify-between p-2 bg-purple-50 rounded">

@@ -1,6 +1,6 @@
 ---
 name: "backend-development-workflow"
-description: "引导完整的后端开发流程，从设计文档开始。当开始后端开发或用户要求生成后端代码结构时调用。"
+description: "引导完整的后端开发流程，从设计到代码实现。包括新功能开发、问题调试、代码重构、性能优化等。适用于后端任何代码变更时调用。"
 ---
 
 # 后端开发工作流
@@ -16,6 +16,9 @@ description: "引导完整的后端开发流程，从设计文档开始。当开
 - 用户想要根据映射表生成API路由
 - 用户需要实现RBAC权限
 - 用户要求基于设计文档创建后端代码
+- 用户报告后端bug或错误（403/500/连接失败等）
+- 用户要求调试、分析后端问题
+- 用户要求清理、优化、重构后端代码
 
 ## 设计文档来源
 
@@ -284,7 +287,7 @@ backend/
 
 ---
 
-## 禁止事项（严格规则）
+## 注意事项（严格规则）
 
 **在任何阶段都禁止**：
 - 新增设计中不存在的接口
@@ -293,14 +296,54 @@ backend/
 - 过度设计业务逻辑
 - 过度抽象
 
+**新增路由时必须**：
+- 添加新路由时,对比现有路由的写法，确保参数一致
+- 复制代码时 ：检查所有依赖项（变量、导入、初始化）是否完整
+- 提交前检查关键路径（如认证、连接）是否完整
+
 **始终**：
 - 严格遵循设计文档
 - 保持各层之间的一致性
 - 使用统一响应格式
 - 遵循命名规范
+- 遇到不确定的功能或需求提出问题，不要直接做
+- 时间规范：**所有时间格式必须为北京时间（UTC+8）**
 
-## 执行指南
+## 时间处理最佳实践
 
+### 统一使用北京时间
+
+项目必须统一使用北京时间（UTC+8），包括：
+- 数据库存储的时间
+- API 返回的时间格式
+- 日志记录的时间
+
+### 实现方式
+
+1. **创建时间工具模块** `app/core/datetime_utils.py`：
+```python
+from datetime import datetime, timezone, timedelta
+
+BEIJING_TZ = timezone(timedelta(hours=8))
+
+def now_beijing() -> datetime:
+    return datetime.now(BEIJING_TZ)
+
+def to_iso_string(dt: datetime) -> str:
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=BEIJING_TZ)
+    return dt.isoformat()
+```
+
+2. **在所有时间相关的地方使用**：
+   - 心跳时间记录：`node.last_heartbeat = now_beijing()`
+   - API 返回时间：`to_iso_string(item.last_heartbeat)`
+
+3. **数据库字段**：
+   - 使用 `DateTime` 类型（不带时区信息）
+   - 存储时转换为北京时间
 
 ## 质量标准
 

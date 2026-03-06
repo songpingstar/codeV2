@@ -8,6 +8,7 @@ agent:
   ip: ""
   environment: prod
   tags: []
+  token: ""
 
 heartbeat:
   interval: 300

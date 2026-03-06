@@ -87,7 +87,23 @@ CREATE INDEX IF NOT EXISTS idx_nodes_environment ON nodes(environment);
 CREATE INDEX IF NOT EXISTS idx_nodes_status ON nodes(status);
 
 -- ============================================
--- 5. 调度任务表 (scheduled_tasks)
+-- 5. 注册Token表 (registration_tokens)
+-- 用于Agent预注册认证
+-- ============================================
+CREATE TABLE IF NOT EXISTS registration_tokens (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    token VARCHAR(64) NOT NULL UNIQUE,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'used', 'expired')),
+    expires_at DATETIME NOT NULL,
+    used_at DATETIME,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_tokens_token ON registration_tokens(token);
+CREATE INDEX IF NOT EXISTS idx_tokens_status ON registration_tokens(status);
+
+-- ============================================
+-- 6. 调度任务表 (scheduled_tasks)
 -- ============================================
 CREATE TABLE IF NOT EXISTS scheduled_tasks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

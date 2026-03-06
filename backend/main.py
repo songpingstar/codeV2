@@ -48,7 +48,7 @@ app.include_router(script_categories.router, prefix=settings.api_prefix)
 app.include_router(system_configs.router, prefix=settings.api_prefix)
 app.include_router(auth.router, prefix=settings.api_prefix)
 app.include_router(agent.router, prefix=settings.api_prefix)
-app.include_router(ws_agent.router)
+app.include_router(ws_agent.router, prefix=settings.api_prefix)
 
 
 @app.on_event("startup")

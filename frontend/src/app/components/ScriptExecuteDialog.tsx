@@ -121,7 +121,7 @@ export function ScriptExecuteDialog({
       await scriptsApi.execute(scriptId, {
         node_ids: selectedNodes,
         environment,
-        parameters: Object.keys(parameters).length > 0 ? parameters : undefined,
+        parameters: Object.keys(parameters).length > 0 ? parameters : {},
       });
 
       onOpenChange(false);

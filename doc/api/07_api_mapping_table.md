@@ -70,13 +70,13 @@
 
 | 模块 | 页面 | 功能点 | FeatureID | URL | 方法 | 请求参数 | 响应结构 | 权限角色 | 分页 | 批量 | 备注 |
 |------|------|--------|-----------|-----|------|----------|----------|----------|------|------|------|
-| Node | NodeManagement | 节点列表展示 | NODE-001 | /api/v1/nodes | GET | page:int(默认:1), size:int(默认:20), keyword:string, environment:string, status:string | {code:int, message:string, data:{total:int, items:[{id:int, name:string, ip:string, environment:string, tags:array[string], status:string, last_heartbeat:string, cpu_usage:string, memory_usage:string, disk_usage:string}]}} | admin, ops, readonly | 是 | 否 | 支持多条件筛选 |
+| Node | NodeManagement | 节点列表展示 | NODE-001 | /api/v1/nodes | GET | page:int(默认:1), size:int(默认:20), keyword:string, environment:string, status:string | {code:int, message:string, data:{total:int, items:[{id:int, name:string, ip:string, environment:string, tags:array[string], status:string, last_heartbeat:string}]}} | admin, ops, readonly | 是 | 否 | 支持多条件筛选 |
 | Node | NodeManagement | 节点搜索 | NODE-002 | /api/v1/nodes/search | GET | keyword:string(必填), page:int(默认:1), size:int(默认:20) | {code:int, message:string, data:{total:int, items:[{...}]}} | admin, ops, readonly | 是 | 否 | 模糊搜索节点名称或IP |
 | Node | NodeManagement | 节点统计 | NODE-003 | /api/v1/nodes/stats | GET | - | {code:int, message:string, data:{total:int, online:int, offline:int, online_rate:float}} | admin, ops, readonly | 否 | 否 | 统计节点数量 |
 | Node | NodeFormDialog | 新增节点 | NODE-004 | /api/v1/nodes | POST | name:string(必填), ip:string(必填), environment:string(必填, 枚举:dev/test/prod), tags:array[string] | {code:int, message:string, data:{id:int, name:string, ip:string, environment:string, tags:array[string], status:string, created_at:string}} | admin | 否 | 否 | 创建成功后节点状态为offline |
 | Node | NodeFormDialog | 编辑节点 | NODE-005 | /api/v1/nodes/{id} | PUT | name:string, ip:string, environment:string, tags:array[string] | {code:int, message:string, data:{id:int, name:string, ip:string, environment:string, tags:array[string], updated_at:string}} | admin | 否 | 否 | 更新节点信息 |
 | Node | NodeManagement | 删除节点 | NODE-006 | /api/v1/nodes/{id} | DELETE | - | {code:int, message:string, data:null} | admin | 否 | 否 | 需二次确认 |
-| Node | NodeDetail | 查看节点详情 | NODE-007 | /api/v1/nodes/{id} | GET | - | {code:int, message:string, data:{id:int, name:string, ip:string, environment:string, tags:array[string], status:string, last_heartbeat:string, cpu_usage:string, memory_usage:string, disk_usage:string, created_at:string, updated_at:string}} | admin, ops, readonly | 否 | 否 | 返回节点详细信息 |
+| Node | NodeDetail | 查看节点详情 | NODE-007 | /api/v1/nodes/{id} | GET | - | {code:int, message:string, data:{id:int, name:string, ip:string, environment:string, tags:array[string], status:string, last_heartbeat:string, created_at:string, updated_at:string}} | admin, ops, readonly | 否 | 否 | 返回节点详细信息 |
 | Node | NodeDetail | 节点执行历史 | NODE-008 | /api/v1/nodes/{id}/executions | GET | page:int(默认:1), size:int(默认:20), status:string | {code:int, message:string, data:{total:int, items:[{execution_id:string, script_name:string, status:string, duration:int, started_at:string}]}} | admin, ops, readonly | 是 | 否 | 查看节点执行历史 |
 
 ---
@@ -130,10 +130,14 @@
 
 | 模块 | 页面 | 功能点 | FeatureID | URL | 方法 | 请求参数 | 响应结构 | 权限角色 | 分页 | 批量 | 备注 |
 |------|------|--------|-----------|-----|------|----------|----------|----------|------|------|------|
-| Agent | - | Agent注册 | - | /api/v1/agent/register | POST | node_name:string(必填), ip:string(必填), environment:string(必填), tags:array[string] | {code:int, message:string, data:{node_id:int, node_token:string}} | 公开 | 否 | 否 | Agent节点注册到管理节点 |
-| Agent | - | Agent心跳 | - | /api/v1/agent/heartbeat | POST | node_id:int(必填), node_token:string(必填), cpu_usage:string, memory_usage:string, disk_usage:string | {code:int, message:string, data:null} | 公开 | 否 | 否 | Agent定期上报心跳 |
+| Agent | - | 获取当前Token | - | /api/v1/agent/tokens | GET | 无 | {code:int, message:string, data:{token:string}} | 公开 | 否 | 否 | 获取当前有效的注册Token（系统初始化时自动生成） |
+| Agent | - | 生成新Token | - | /api/v1/agent/tokens | POST | 无 | {code:int, message:string, data:{token:string}} | 公开 | 否 | 否 | 额外生成新的注册Token（原有Token保留） |
+| Agent | - | Token验证注册 | - | /api/v1/agent/register | POST | node_name:string(必填), ip:string(必填), environment:string(必填), tags:array[string], token:string(必填) | {code:int, message:string, data:{node_id:int, node_token:string}} | 公开 | 否 | 否 | Agent使用Token验证注册，首次注册后创建节点记录 |
+| Agent | - | Agent心跳 | - | /api/v1/agent/heartbeat | POST | node_id:int(必填), node_token:string(必填) | {code:int, message:string, data:null} | 公开 | 否 | 否 | Agent定期上报心跳 |
 | Agent | - | 接收任务 | - | /api/v1/agent/tasks | GET | node_id:int(必填), node_token:string(必填) | {code:int, message:string, data:[{execution_id:string, script_id:int, script_content:text, parameters:object}]} | 公开 | 否 | 否 | Agent获取待执行任务 |
 | Agent | - | 上报执行结果 | - | /api/v1/agent/tasks/{execution_id}/result | POST | node_id:int(必填), node_token:string(必填), status:string(必填), exit_code:int, log_content:text, error_message:string, duration:int | {code:int, message:string, data:null} | 公开 | 否 | 否 | Agent上报任务执行结果 |
+
+**备注**：Token预注册流程 - 系统初始化时自动生成初始Token，前端页面显示当前Token，点击"生成新Token"可额外生成新Token（原有Token保留），Agent配置Token后启动，注册时验证Token有效性
 
 ---
 

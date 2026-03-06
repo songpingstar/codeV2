@@ -40,6 +40,7 @@ agent:
   tags:                        # 标签(可选)
     - web
     - production
+  token: "xxxxxxxxxxxxxxxx"   # 注册Token(必填，在管理界面获取)
 
 heartbeat:
   interval: 30                 # 心跳间隔(秒)
@@ -50,7 +51,14 @@ task:
   max_concurrent: 3               # 最大并发任务数
 ```
 
-### 3. 启动 Agent
+### 3. 获取注册 Token
+
+1. 登录管理界面
+2. 进入"节点管理"页面
+3. 点击"新增节点"按钮
+4. 复制界面显示的 Token
+
+### 4. 配置 Token 并启动
 
 前台运行：
 ```bash
@@ -117,6 +125,9 @@ A: 检查防火墙是否允许 WebSocket 连接(端口 8000)。
 
 ### Q: 任务执行失败
 A: 查看 Agent 日志中的错误信息，确保脚本语法正确且有执行权限。
+
+### Q: Token 验证失败怎么办
+A: 确保 config.yaml 中的 token 与管理界面显示的 Token 一致。如果 Token 已过期，请在管理界面生成新的 Token。
 
 ### Q: 如何重新注册节点
 A: 删除 `credentials.json` 文件后重启 Agent，节点将重新注册。
