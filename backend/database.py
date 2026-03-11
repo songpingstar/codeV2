@@ -9,8 +9,19 @@ os.makedirs("data", exist_ok=True)
 
 engine = create_engine(
     settings.database_url,
-    connect_args={"check_same_thread": False}
+    connect_args={
+        "check_same_thread": False,
+        "timeout": 30
+    },
+    pool_pre_ping=True,
+    pool_size=10,
+    max_overflow=20
 )
+
+with engine.connect() as conn:
+    conn.execute(text("PRAGMA journal_mode=WAL"))
+    conn.execute(text("PRAGMA busy_timeout=30000"))
+    conn.commit()
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
@@ -30,6 +41,7 @@ def init_db():
     
     with engine.connect() as conn:
         conn.execute(text("PRAGMA journal_mode=WAL"))
+        conn.execute(text("PRAGMA busy_timeout=30000"))
         conn.commit()
         
         result = conn.execute(text("PRAGMA table_info(nodes)")).fetchall()

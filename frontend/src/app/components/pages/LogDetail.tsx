@@ -8,6 +8,10 @@ import { formatDate } from '@/app/utils/datetime';
 
 interface LogDetailProps {
   recordId: string;
+  initialRecord?: {
+    id: string;
+    status: string;
+  };
   onBack?: () => void;
 }
 
@@ -20,7 +24,7 @@ interface ExecutionDetail {
   execution_time: string;
   completion_time?: string;
   duration: number;
-  status: 'success' | 'failed' | 'running';
+  status: 'success' | 'failed' | 'running' | 'pending' | 'cancelled';
   environment: 'dev' | 'test' | 'prod';
   nodes: Array<{
     id: number;
@@ -40,13 +44,15 @@ interface ExecutionDetail {
   }>;
 }
 
-export function LogDetail({ recordId, onBack }: LogDetailProps) {
+export function LogDetail({ recordId, initialRecord, onBack }: LogDetailProps) {
   const [execution, setExecution] = useState<ExecutionDetail | null>(null);
   const [logs, setLogs] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
+
+  const displayStatus = execution?.status || initialRecord?.status || 'running';
 
   async function loadData() {
     try {
@@ -76,10 +82,10 @@ export function LogDetail({ recordId, onBack }: LogDetailProps) {
         const logsRes = await executionsApi.getLogs(recordId, firstNode.id);
         setLogs(logsRes.log_content || '');
       }
+      setLoading(false);
     } catch (err: any) {
       console.error("load error:", err);
       setError(err.response?.data?.message || '加载数据失败');
-    } finally {
       setLoading(false);
     }
   }
@@ -142,18 +148,29 @@ export function LogDetail({ recordId, onBack }: LogDetailProps) {
   }
 
   const getStatusIcon = () => {
-    if (execution.status === 'success') {
+    if (displayStatus === 'success') {
       return <CheckCircle className="w-5 h-5 text-green-600" />;
+    }
+    if (displayStatus === 'running' || displayStatus === 'pending') {
+      return <Clock className="w-5 h-5 text-blue-600" />;
     }
     return <XCircle className="w-5 h-5 text-red-600" />;
   };
 
   const getStatusBadge = () => {
-    if (execution.status === 'success') {
+    if (displayStatus === 'success') {
       return (
         <span className="inline-flex items-center px-3 py-1 rounded text-sm font-medium bg-green-50 text-green-700 border border-green-200">
           <CheckCircle className="w-4 h-4 mr-1.5" />
           执行成功
+        </span>
+      );
+    }
+    if (displayStatus === 'running' || displayStatus === 'pending') {
+      return (
+        <span className="inline-flex items-center px-3 py-1 rounded text-sm font-medium bg-blue-50 text-blue-700 border border-blue-200 animate-pulse">
+          <Clock className="w-4 h-4 mr-1.5" />
+          执行中
         </span>
       );
     }
@@ -385,8 +402,13 @@ export function LogDetail({ recordId, onBack }: LogDetailProps) {
 
               {/* Terminal-style log viewer */}
               <div className="bg-gray-900 rounded-lg p-4 font-mono text-xs overflow-auto" style={{ maxHeight: '70vh' }}>
-                <pre className="text-gray-100 whitespace-pre-wrap leading-relaxed">
-                  {logs.split('\n').map((line, index) => {
+                {!logs ? (
+                  <div className="flex flex-col items-center justify-center h-32">
+                    <span className="text-gray-500">暂无日志</span>
+                  </div>
+                ) : (
+                  <pre className="text-gray-100 whitespace-pre-wrap leading-relaxed">
+                    {logs.split('\n').map((line, index) => {
                     let lineClass = 'text-gray-100';
                     
                     if (line.includes('ERROR')) {
@@ -406,13 +428,18 @@ export function LogDetail({ recordId, onBack }: LogDetailProps) {
                     );
                   })}
                 </pre>
+                )}
               </div>
 
               {/* Log Stats */}
               <div className="mt-4 pt-4 border-t border-gray-200">
                 <div className="flex items-center gap-6 text-xs text-gray-500">
-                  <span>总行数: {logs.split('\n').length}</span>
-                  <span>文件大小: {(logs.length / 1024).toFixed(2)} KB</span>
+                  {logs && (
+                    <>
+                      <span>总行数: {logs.split('\n').length}</span>
+                      <span>文件大小: {(logs.length / 1024).toFixed(2)} KB</span>
+                    </>
+                  )}
                 </div>
               </div>
             </CardContent>

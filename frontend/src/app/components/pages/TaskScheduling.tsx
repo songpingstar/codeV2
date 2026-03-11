@@ -3,6 +3,7 @@ import { Plus, Search, Edit, Trash2, Clock, Calendar, Play, Pause, Server, Alert
 import { Card, CardContent } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { Switch } from '@/app/components/ui/switch';
+import { formatDate } from '@/app/utils/datetime';
 import {
   Select,
   SelectContent,
@@ -10,6 +11,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/app/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/app/components/ui/alert-dialog';
 import { TaskDialog } from '@/app/components/TaskDialog';
 import { tasksApi } from '@/app/api/tasks';
 
@@ -45,15 +56,14 @@ export function TaskScheduling() {
   const [error, setError] = useState('');
   const [taskDialogOpen, setTaskDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<any>(null);
+  const [deleteTaskId, setDeleteTaskId] = useState<number | null>(null);
 
   async function loadData() {
     try {
       setLoading(true);
       setError('');
-      const [tasksRes, statsRes] = await Promise.all([
-        tasksApi.getList({ page: 1, size: 100 }),
-        tasksApi.getStats()
-      ]);
+      const tasksRes = await tasksApi.getList({ page: 1, size: 100 });
+      const statsRes = await tasksApi.getStats();
       setTasks(tasksRes.items || []);
       setStats(statsRes);
     } catch (err: any) {
@@ -64,15 +74,20 @@ export function TaskScheduling() {
     }
   }
 
-  async function handleDelete(id: number) {
-    if (!confirm("确认删除该任务吗？")) return;
+  async function confirmDelete() {
+    if (!deleteTaskId) return;
     try {
-      await tasksApi.delete(id);
+      await tasksApi.delete(deleteTaskId);
+      setDeleteTaskId(null);
       loadData();
     } catch (err: any) {
       console.error("delete error:", err);
       setError(err.response?.data?.message || '删除失败');
     }
+  }
+
+  function handleDelete(id: number) {
+    setDeleteTaskId(id);
   }
 
   async function handleToggle(id: number, enabled: boolean) {
@@ -87,6 +102,8 @@ export function TaskScheduling() {
 
   useEffect(() => {
     loadData();
+    const interval = setInterval(loadData, 60000);
+    return () => clearInterval(interval);
   }, []);
 
   const filteredTasks = tasks.filter((task) => {
@@ -134,13 +151,15 @@ export function TaskScheduling() {
     );
   };
 
-  const getEnvironmentBadge = (env: 'dev' | 'test' | 'prod') => {
-    const configs = {
+  const getEnvironmentBadge = (env?: 'dev' | 'test' | 'prod') => {
+    if (!env) return null;
+    const configs: Record<string, { label: string; color: string }> = {
       dev: { label: 'Dev', color: 'bg-blue-100 text-blue-700' },
       test: { label: 'Test', color: 'bg-yellow-100 text-yellow-700' },
       prod: { label: 'Prod', color: 'bg-red-100 text-red-700' },
     };
     const config = configs[env];
+    if (!config) return null;
     return (
       <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${config.color}`}>
         {config.label}
@@ -311,10 +330,12 @@ export function TaskScheduling() {
                             <Server className="w-3 h-3 text-gray-400" />
                             {task.execution_mode === 'all' ? (
                               <span className="text-xs text-gray-500">所有节点</span>
-                            ) : (
+                            ) : task.target_nodes && task.target_nodes.length > 0 ? (
                               <span className="text-xs text-gray-500">
-                                {task.target_node_names || '未指定'}
+                                已选择 {task.target_nodes.length} 个节点
                               </span>
+                            ) : (
+                              <span className="text-xs text-gray-500">未指定</span>
                             )}
                           </div>
                           {task.last_run_time && (
@@ -343,7 +364,7 @@ export function TaskScheduling() {
                       <td className="py-4 px-4">
                         <div className="flex items-center gap-2 text-sm text-gray-600">
                           <Clock className="w-4 h-4 text-gray-400" />
-                          {task.next_run_time}
+                          {task.next_run_time ? formatDate(task.next_run_time) : '-'}
                         </div>
                       </td>
                       <td className="py-4 px-4">
@@ -412,7 +433,26 @@ export function TaskScheduling() {
         onOpenChange={setTaskDialogOpen}
         mode={editingTask ? 'edit' : 'create'}
         task={editingTask}
+        onSuccess={() => loadData()}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteTaskId !== null} onOpenChange={(open) => !open && setDeleteTaskId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认删除</AlertDialogTitle>
+            <AlertDialogDescription>
+              确定要删除该任务吗？此操作无法撤销。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={() => confirmDelete()} className="bg-red-600 hover:bg-red-700 text-white">
+              删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

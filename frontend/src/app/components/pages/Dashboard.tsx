@@ -93,12 +93,10 @@ export function Dashboard() {
   async function loadData() {
     try {
       setLoading(true);
-      const [statsRes, scriptDistRes, taskStatsRes, executionsRes] = await Promise.all([
-        dashboardApi.getStats(),
-        dashboardApi.getScriptDistribution(),
-        dashboardApi.getTaskStats(),
-        dashboardApi.getRecentExecutions(5)
-      ]);
+      const statsRes = await dashboardApi.getStats();
+      const scriptDistRes = await dashboardApi.getScriptDistribution();
+      const taskStatsRes = await dashboardApi.getTaskStats();
+      const executionsRes = await dashboardApi.getRecentExecutions(5);
       setStats(statsRes);
       setScriptDistribution(scriptDistRes);
       setTaskStats(taskStatsRes);

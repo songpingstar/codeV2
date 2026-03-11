@@ -1,7 +1,11 @@
 from fastapi import APIRouter, Depends, Query, Path
 from pydantic import BaseModel
 from typing import List, Optional
+from sqlalchemy.orm import Session
 from app.core.response import SuccessResponse
+from app.services.task_service import TaskService
+from app.services.task_service import scheduler
+from database import get_db
 
 router = APIRouter(prefix="/scheduled-tasks", tags=["Task"])
 
@@ -30,6 +34,10 @@ class TaskToggleRequest(BaseModel):
     enabled: bool
 
 
+class CronParseRequest(BaseModel):
+    cron_expression: str
+
+
 @router.get("")
 async def get_tasks(
     page: int = Query(1, ge=1),
@@ -37,11 +45,11 @@ async def get_tasks(
     keyword: Optional[str] = None,
     status: Optional[str] = None,
     environment: Optional[str] = None,
+    db: Session = Depends(get_db)
 ):
-    return SuccessResponse.create(data={
-        "total": 12,
-        "items": []
-    })
+    service = TaskService(db)
+    result = service.get_tasks(page, size, keyword, status, environment)
+    return SuccessResponse.create(data=result)
 
 
 @router.get("/search")
@@ -49,54 +57,50 @@ async def search_tasks(
     keyword: str = Query(..., min_length=1),
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db)
 ):
-    return SuccessResponse.create(data={"total": 3, "items": []})
+    service = TaskService(db)
+    result = service.search_tasks(keyword, page, size)
+    return SuccessResponse.create(data=result)
 
 
 @router.get("/stats")
-async def get_task_stats():
-    return SuccessResponse.create(data={
-        "total": 12,
-        "enabled": 10,
-        "disabled": 2
-    })
+async def get_task_stats(db: Session = Depends(get_db)):
+    service = TaskService(db)
+    result = service.get_task_stats()
+    return SuccessResponse.create(data=result)
 
 
 @router.post("")
 async def create_task(
     task: TaskCreate,
+    db: Session = Depends(get_db)
 ):
-    return SuccessResponse.create(data={
-        "id": 1,
-        "name": task.name,
-        "script_id": task.script_id,
-        "cron_expression": task.cron_expression,
-        "enabled": True,
-        "next_run_time": "2026-02-28 10:00:00",
-        "created_at": "2026-02-28 10:00:00"
-    })
+    service = TaskService(db)
+    result = service.create_task(task.model_dump())
+    scheduler.reload_all_jobs()
+    return SuccessResponse.create(data=result)
 
 
 @router.put("/{id}")
 async def update_task(
     id: int = Path(..., ge=1),
     task: TaskUpdate = None,
+    db: Session = Depends(get_db)
 ):
-    return SuccessResponse.create(data={
-        "id": id,
-        "name": task.name,
-        "script_id": task.script_id,
-        "cron_expression": task.cron_expression,
-        "enabled": True,
-        "next_run_time": "2026-02-28 10:00:00",
-        "updated_at": "2026-02-28 10:00:00"
-    })
+    service = TaskService(db)
+    result = service.update_task(id, task.model_dump(exclude_unset=True))
+    return SuccessResponse.create(data=result)
 
 
 @router.delete("/{id}")
 async def delete_task(
     id: int = Path(..., ge=1),
+    db: Session = Depends(get_db)
 ):
+    service = TaskService(db)
+    service.delete_task(id)
+    scheduler.reload_all_jobs()
     return SuccessResponse.create(data=None)
 
 
@@ -104,33 +108,30 @@ async def delete_task(
 async def toggle_task(
     id: int = Path(..., ge=1),
     request: TaskToggleRequest = None,
+    db: Session = Depends(get_db)
 ):
-    return SuccessResponse.create(data={
-        "id": id,
-        "enabled": request.enabled,
-        "next_run_time": "2026-02-28 10:00:00"
-    })
+    service = TaskService(db)
+    result = service.toggle_task(id, request.enabled if request else True)
+    scheduler.reload_all_jobs()
+    return SuccessResponse.create(data=result)
 
 
 @router.post("/parse-cron")
 async def parse_cron(
-    cron_expression: str = Query(..., min_length=1),
+    request: CronParseRequest = None,
+    db: Session = Depends(get_db)
 ):
-    return SuccessResponse.create(data={
-        "description": "每天10点执行",
-        "next_runs": ["2026-02-28 10:00:00", "2026-03-01 10:00:00"]
-    })
+    service = TaskService(db)
+    cron_expr = request.cron_expression if request else ""
+    result = service.parse_cron(cron_expr)
+    return SuccessResponse.create(data=result)
 
 
 @router.get("/available-nodes")
 async def get_available_nodes(
     environment: str = Query(...),
+    db: Session = Depends(get_db)
 ):
-    return SuccessResponse.create(data=[
-        {
-            "id": 1,
-            "name": "node-1",
-            "ip": "192.168.1.1",
-            "status": "online"
-        }
-    ])
+    service = TaskService(db)
+    result = service.get_available_nodes(environment)
+    return SuccessResponse.create(data=result)

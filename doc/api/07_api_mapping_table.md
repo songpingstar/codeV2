@@ -19,7 +19,7 @@
 | Dashboard | Dashboard | 统计卡片展示 | DASH-001 | /api/v1/dashboard/stats | GET | - | {code:int, message:string, data:{today_executions:int, success_rate:float, online_nodes:int, total_nodes:int}} | admin, ops, readonly | 否 | 否 | 实时统计数据 |
 | Dashboard | Dashboard | 脚本类型分布 | DASH-002 | /api/v1/dashboard/script-distribution | GET | - | {code:int, message:string, data:{python:int, shell:int}} | admin, ops, readonly | 否 | 否 | 按脚本类型统计 |
 | Dashboard | Dashboard | 调度任务统计 | DASH-003 | /api/v1/dashboard/task-stats | GET | - | {code:int, message:string, data:{scheduled:int, triggered:int, manual:int}} | admin, ops, readonly | 否 | 否 | 按任务类型统计 |
-| Dashboard | Dashboard | 最近执行记录 | DASH-004 | /api/v1/dashboard/recent-executions | GET | limit:int(默认:5) | {code:int, message:string, data:[{id:string, script_name:string, status:string, node:string, start_time:string, duration:string}]} | admin, ops, readonly | 否 | 否 | 返回最近N条记录 |
+| Dashboard | Dashboard | 最近执行记录 | DASH-004 | /api/v1/dashboard/recent-executions | GET | limit:int(默认:5) | {code:int, message:string, data:[{id:string, script_name:string, status:string(枚举:pending/running/success/failed), node:string, start_time:string, duration:string}]} | admin, ops, readonly | 否 | 否 | 返回最近N条记录 |
 
 ---
 
@@ -33,7 +33,7 @@
 | Script | ScriptDetail | 编辑脚本 | SCRIPT-006 | /api/v1/scripts/{id} | PUT | name:string, type:string, category_id:int, content:text, description:string, maintainer:string | {code:int, message:string, data:{id:int, name:string, type:string, category_id:int, content:string, updated_at:string}} | admin, ops | 否 | 否 | 更新成功 |
 | Script | ScriptManagement | 删除脚本 | SCRIPT-007 | /api/v1/scripts/{id} | DELETE | - | {code:int, message:string, data:null} | admin | 否 | 否 | 需二次确认 |
 | Script | ScriptDetail | 查看脚本详情 | SCRIPT-008 | /api/v1/scripts/{id} | GET | - | {code:int, message:string, data:{id:int, name:string, type:string, category_id:int, category_name:string, content:text, description:string, maintainer:string, created_by:string, created_at:string, updated_at:string}} | admin, ops, readonly | 否 | 否 | 返回完整脚本信息 |
-| Script | ScriptExecuteDialog | 立即执行 | SCRIPT-009 | /api/v1/scripts/{id}/execute | POST | node_ids:array[int](必填), environment:string(必填, 枚举:dev/test/prod), parameters:object | {code:int, message:string, data:{execution_id:string, status:string, started_at:string}} | admin, ops | 否 | 否 | 返回执行ID |
+| Script | ScriptExecuteDialog | 立即执行 | SCRIPT-009 | /api/v1/scripts/{id}/execute | POST | node_ids:array[int](必填), environment:string(必填, 枚举:dev/test/prod), parameters:object | {code:int, message:string, data:{execution_id:string, status:string(枚举:pending/running/success/failed), started_at:string}} | admin, ops | 否 | 否 | 返回执行ID |
 
 ---
 
@@ -41,7 +41,7 @@
 
 | 模块 | 页面 | 功能点 | FeatureID | URL | 方法 | 请求参数 | 响应结构 | 权限角色 | 分页 | 批量 | 备注 |
 |------|------|--------|-----------|-----|------|----------|----------|----------|------|------|------|
-| Task | TaskScheduling | 任务列表展示 | TASK-001 | /api/v1/scheduled-tasks | GET | page:int(默认:1), size:int(默认:20), keyword:string, status:string, environment:string | {code:int, message:string, data:{total:int, items:[{id:int, name:string, script_id:int, script_name:string, cron_expression:string, cron_description:string, enabled:boolean, next_run_time:string, last_run_time:string, last_run_status:string}]}} | admin, ops, readonly | 是 | 否 | 支持多条件筛选 |
+| Task | TaskScheduling | 任务列表展示 | TASK-001 | /api/v1/scheduled-tasks | GET | page:int(默认:1), size:int(默认:20), keyword:string, status:string(枚举:enabled/disabled), environment:string(枚举:dev/test/prod) | {code:int, message:string, data:{total:int, items:[{id:int, name:string, script_id:int, script_name:string, cron_expression:string, cron_description:string, enabled:boolean, next_run_time:string, last_run_time:string, last_run_status:string(枚举:pending/running/success/failed)}]}} | admin, ops, readonly | 是 | 否 | 支持多条件筛选 |
 | Task | TaskScheduling | 任务搜索 | TASK-002 | /api/v1/scheduled-tasks/search | GET | keyword:string(必填), page:int(默认:1), size:int(默认:20) | {code:int, message:string, data:{total:int, items:[{...}]}} | admin, ops, readonly | 是 | 否 | 模糊搜索任务名称 |
 | Task | TaskScheduling | 任务统计 | TASK-004 | /api/v1/scheduled-tasks/stats | GET | - | {code:int, message:string, data:{total:int, enabled:int, disabled:int}} | admin, ops, readonly | 否 | 否 | 统计任务数量 |
 | Task | TaskDialog | 新建任务 | TASK-005 | /api/v1/scheduled-tasks | POST | name:string(必填), script_id:int(必填), cron_expression:string(必填), cron_description:string, environment:string(必填, 枚举:dev/test/prod), execution_mode:string(默认:all, 枚举:all/specified), target_nodes:array[int] | {code:int, message:string, data:{id:int, name:string, script_id:int, cron_expression:string, enabled:boolean, next_run_time:string, created_at:string}} | admin, ops | 否 | 否 | 创建成功后自动计算下次执行时间 |
@@ -49,7 +49,7 @@
 | Task | TaskScheduling | 删除任务 | TASK-007 | /api/v1/scheduled-tasks/{id} | DELETE | - | {code:int, message:string, data:null} | admin | 否 | 否 | 需二次确认 |
 | Task | TaskScheduling | 启用/暂停任务 | TASK-008 | /api/v1/scheduled-tasks/{id}/toggle | PUT | enabled:boolean(必填) | {code:int, message:string, data:{id:int, enabled:boolean, next_run_time:string}} | admin, ops | 否 | 否 | 切换任务启用状态 |
 | Task | TaskDialog | Cron表达式解析 | TASK-009 | /api/v1/scheduled-tasks/parse-cron | POST | cron_expression:string(必填) | {code:int, message:string, data:{description:string, next_runs:array[string]}} | admin, ops | readonly | 否 | 否 | 解析Cron表达式并返回描述和下次执行时间 |
-| Task | TaskDialog | 获取可用节点列表 | TASK-010 | /api/v1/scheduled-tasks/available-nodes | GET | environment:string(必填, 枚举:dev/test/prod) | {code:int, message:string, data:[{id:int, name:string, ip:string, status:string}]} | admin, ops, readonly | 否 | 否 | 根据环境返回可用节点 |
+| Task | TaskDialog | 获取可用节点列表 | TASK-010 | /api/v1/scheduled-tasks/available-nodes | GET | environment:string(必填, 枚举:dev/test/prod) | {code:int, message:string, data:[{id:int, name:string, ip:string, status:string(枚举:online/offline)}]} | admin, ops, readonly | 否 | 否 | 根据环境返回可用节点 |
 
 ---
 
@@ -57,12 +57,12 @@
 
 | 模块 | 页面 | 功能点 | FeatureID | URL | 方法 | 请求参数 | 响应结构 | 权限角色 | 分页 | 批量 | 备注 |
 |------|------|--------|-----------|-----|------|----------|----------|----------|------|------|------|
-| Execution | ExecutionHistory | 记录列表展示 | EXEC-001 | /api/v1/executions | GET | page:int(默认:1), size:int(默认:20), keyword:string, status:string, environment:string | {code:int, message:string, data:{total:int, items:[{id:int, execution_id:string, script_name:string, executor:string, execution_type:string, environment:string, status:string, node_count:int, success_count:int, failed_count:int, duration:int, started_at:string, completed_at:string}]}} | admin, ops, readonly | 是 | 否 | 支持多条件筛选 |
+| Execution | ExecutionHistory | 记录列表展示 | EXEC-001 | /api/v1/executions | GET | page:int(默认:1), size:int(默认:20), keyword:string, status:string(枚举:pending/running/success/failed), environment:string(枚举:dev/test/prod) | {code:int, message:string, data:{total:int, items:[{id:int, execution_id:string, script_name:string, executor:string, execution_type:string, environment:string(枚举:dev/test/prod), status:string(枚举:pending/running/success/failed), node_count:int, success_count:int, failed_count:int, duration:int, started_at:string, completed_at:string}]}} | admin, ops, readonly | 是 | 否 | 支持多条件筛选 |
 | Execution | ExecutionHistory | 记录搜索 | EXEC-002 | /api/v1/executions/search | GET | keyword:string(必填), page:int(默认:1), size:int(默认:20) | {code:int, message:string, data:{total:int, items:[{...}]}} | admin, ops, readonly | 是 | 否 | 模糊搜索脚本名称或执行人 |
 | Execution | ExecutionHistory | 统计信息 | EXEC-003 | /api/v1/executions/stats | GET | - | {code:int, message:string, data:{total:int, success:int, failed:int, success_rate:float}} | admin, ops, readonly | 否 | 否 | 统计执行记录 |
-| Execution | LogDetail | 查看日志 | EXEC-004 | /api/v1/executions/{execution_id}/logs | GET | node_id:int | {code:int, message:string, data:{execution_id:string, node_id:int, node_name:string, status:string, log_content:text, exit_code:int, duration:int, started_at:string, completed_at:string}} | admin, ops, readonly | 否 | 否 | 查看指定节点的执行日志 |
+| Execution | LogDetail | 查看日志 | EXEC-004 | /api/v1/executions/{execution_id}/logs | GET | node_id:int | {code:int, message:string, data:{execution_id:string, node_id:int, node_name:string, status:string(枚举:pending/running/success/failed), log_content:text, exit_code:int, duration:int, started_at:string, completed_at:string}} | admin, ops, readonly | 否 | 否 | 查看指定节点的执行日志 |
 | Execution | LogDetail | 日志下载 | EXEC-005 | /api/v1/executions/{execution_id}/logs/download | GET | node_id:int, format:string(默认:txt) | {code:int, message:string, data:{download_url:string}} | admin, ops, readonly | 否 | 否 | 返回日志下载链接 |
-| Execution | ExecutionHistory | 执行详情 | EXEC-006 | /api/v1/executions/{execution_id} | GET | - | {code:int, message:string, data:{id:int, execution_id:string, script_id:int, script_name:string, task_id:int, executor:string, execution_type:string, environment:string, status:string, node_count:int, success_count:int, failed_count:int, duration:int, error_message:string, started_at:string, completed_at:string, node_executions:[{node_id:int, node_name:string, status:string, duration:int}]}} | admin, ops, readonly | 否 | 否 | 返回执行详情和所有节点执行情况 |
+| Execution | ExecutionHistory | 执行详情 | EXEC-006 | /api/v1/executions/{execution_id} | GET | - | {code:int, message:string, data:{id:int, execution_id:string, script_id:int, script_name:string, task_id:int, executor:string, execution_type:string, environment:string(枚举:dev/test/prod), status:string(枚举:pending/running/success/failed), node_count:int, success_count:int, failed_count:int, duration:int, error_message:string, started_at:string, completed_at:string, node_executions:[{node_id:int, node_name:string, status:string(枚举:pending/running/success/failed), duration:int}]}} | admin, ops, readonly | 否 | 否 | 返回执行详情和所有节点执行情况 |
 
 ---
 
@@ -70,14 +70,14 @@
 
 | 模块 | 页面 | 功能点 | FeatureID | URL | 方法 | 请求参数 | 响应结构 | 权限角色 | 分页 | 批量 | 备注 |
 |------|------|--------|-----------|-----|------|----------|----------|----------|------|------|------|
-| Node | NodeManagement | 节点列表展示 | NODE-001 | /api/v1/nodes | GET | page:int(默认:1), size:int(默认:20), keyword:string, environment:string, status:string | {code:int, message:string, data:{total:int, items:[{id:int, name:string, ip:string, environment:string, tags:array[string], status:string, last_heartbeat:string}]}} | admin, ops, readonly | 是 | 否 | 支持多条件筛选 |
+| Node | NodeManagement | 节点列表展示 | NODE-001 | /api/v1/nodes | GET | page:int(默认:1), size:int(默认:20), keyword:string, environment:string(枚举:dev/test/prod), status:string(枚举:online/offline) | {code:int, message:string, data:{total:int, items:[{id:int, name:string, ip:string, environment:string(枚举:dev/test/prod), tags:array[string], status:string(枚举:online/offline), last_heartbeat:string}]}} | admin, ops, readonly | 是 | 否 | 支持多条件筛选 |
 | Node | NodeManagement | 节点搜索 | NODE-002 | /api/v1/nodes/search | GET | keyword:string(必填), page:int(默认:1), size:int(默认:20) | {code:int, message:string, data:{total:int, items:[{...}]}} | admin, ops, readonly | 是 | 否 | 模糊搜索节点名称或IP |
 | Node | NodeManagement | 节点统计 | NODE-003 | /api/v1/nodes/stats | GET | - | {code:int, message:string, data:{total:int, online:int, offline:int, online_rate:float}} | admin, ops, readonly | 否 | 否 | 统计节点数量 |
-| Node | NodeFormDialog | 新增节点 | NODE-004 | /api/v1/nodes | POST | name:string(必填), ip:string(必填), environment:string(必填, 枚举:dev/test/prod), tags:array[string] | {code:int, message:string, data:{id:int, name:string, ip:string, environment:string, tags:array[string], status:string, created_at:string}} | admin | 否 | 否 | 创建成功后节点状态为offline |
+| Node | NodeFormDialog | 新增节点 | NODE-004 | /api/v1/nodes | POST | name:string(必填), ip:string(必填), environment:string(必填, 枚举:dev/test/prod), tags:array[string] | {code:int, message:string, data:{id:int, name:string, ip:string, environment:string(枚举:dev/test/prod), tags:array[string], status:string(枚举:online/offline), created_at:string}} | admin | 否 | 否 | 创建成功后节点状态为offline |
 | Node | NodeFormDialog | 编辑节点 | NODE-005 | /api/v1/nodes/{id} | PUT | name:string, ip:string, environment:string, tags:array[string] | {code:int, message:string, data:{id:int, name:string, ip:string, environment:string, tags:array[string], updated_at:string}} | admin | 否 | 否 | 更新节点信息 |
 | Node | NodeManagement | 删除节点 | NODE-006 | /api/v1/nodes/{id} | DELETE | - | {code:int, message:string, data:null} | admin | 否 | 否 | 需二次确认 |
-| Node | NodeDetail | 查看节点详情 | NODE-007 | /api/v1/nodes/{id} | GET | - | {code:int, message:string, data:{id:int, name:string, ip:string, environment:string, tags:array[string], status:string, last_heartbeat:string, created_at:string, updated_at:string}} | admin, ops, readonly | 否 | 否 | 返回节点详细信息 |
-| Node | NodeDetail | 节点执行历史 | NODE-008 | /api/v1/nodes/{id}/executions | GET | page:int(默认:1), size:int(默认:20), status:string | {code:int, message:string, data:{total:int, items:[{execution_id:string, script_name:string, status:string, duration:int, started_at:string}]}} | admin, ops, readonly | 是 | 否 | 查看节点执行历史 |
+| Node | NodeDetail | 查看节点详情 | NODE-007 | /api/v1/nodes/{id} | GET | - | {code:int, message:string, data:{id:int, name:string, ip:string, environment:string(枚举:dev/test/prod), tags:array[string], status:string(枚举:online/offline), last_heartbeat:string, created_at:string, updated_at:string}} | admin, ops, readonly | 否 | 否 | 返回节点详细信息 |
+| Node | NodeDetail | 节点执行历史 | NODE-008 | /api/v1/nodes/{id}/executions | GET | page:int(默认:1), size:int(默认:20), status:string(枚举:pending/running/success/failed) | {code:int, message:string, data:{total:int, items:[{execution_id:string, script_name:string, status:string(枚举:pending/running/success/failed), duration:int, started_at:string}]}} | admin, ops, readonly | 是 | 否 | 查看节点执行历史 |
 
 ---
 
@@ -135,7 +135,7 @@
 | Agent | - | Token验证注册 | - | /api/v1/agent/register | POST | node_name:string(必填), ip:string(必填), environment:string(必填), tags:array[string], token:string(必填) | {code:int, message:string, data:{node_id:int, node_token:string}} | 公开 | 否 | 否 | Agent使用Token验证注册，首次注册后创建节点记录 |
 | Agent | - | Agent心跳 | - | /api/v1/agent/heartbeat | POST | node_id:int(必填), node_token:string(必填) | {code:int, message:string, data:null} | 公开 | 否 | 否 | Agent定期上报心跳 |
 | Agent | - | 接收任务 | - | /api/v1/agent/tasks | GET | node_id:int(必填), node_token:string(必填) | {code:int, message:string, data:[{execution_id:string, script_id:int, script_content:text, parameters:object}]} | 公开 | 否 | 否 | Agent获取待执行任务 |
-| Agent | - | 上报执行结果 | - | /api/v1/agent/tasks/{execution_id}/result | POST | node_id:int(必填), node_token:string(必填), status:string(必填), exit_code:int, log_content:text, error_message:string, duration:int | {code:int, message:string, data:null} | 公开 | 否 | 否 | Agent上报任务执行结果 |
+| Agent | - | 上报执行结果 | - | /api/v1/agent/tasks/{execution_id}/result | POST | node_id:int(必填), node_token:string(必填), status:string(必填, 枚举:pending/running/success/failed), exit_code:int, log_content:text, error_message:string, duration:int | {code:int, message:string, data:null} | 公开 | 否 | 否 | Agent上报任务执行结果 |
 
 **备注**：Token预注册流程 - 系统初始化时自动生成初始Token，前端页面显示当前Token，点击"生成新Token"可额外生成新Token（原有Token保留），Agent配置Token后启动，注册时验证Token有效性
 

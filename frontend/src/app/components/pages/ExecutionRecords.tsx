@@ -1,22 +1,24 @@
 import { useState } from 'react';
 import { ExecutionHistory } from './ExecutionHistory';
 import { LogDetail } from './LogDetail';
+import { ExecutionRecord } from './ExecutionHistory';
 
 export function ExecutionRecords() {
-  const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
+  const [selectedRecord, setSelectedRecord] = useState<ExecutionRecord | null>(null);
 
-  if (selectedRecordId) {
+  if (selectedRecord) {
     return (
       <LogDetail
-        recordId={selectedRecordId}
-        onBack={() => setSelectedRecordId(null)}
+        recordId={selectedRecord.id}
+        initialRecord={selectedRecord}
+        onBack={() => setSelectedRecord(null)}
       />
     );
   }
 
   return (
     <ExecutionHistory
-      onViewLog={(recordId) => setSelectedRecordId(recordId)}
+      onViewLog={(record) => setSelectedRecord(record)}
     />
   );
 }

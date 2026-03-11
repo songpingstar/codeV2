@@ -117,10 +117,8 @@ export function NodeManagement({ onViewNode }: NodeManagementProps = {}) {
     try {
       setLoading(true);
       setError('');
-      const [nodesRes, statsRes] = await Promise.all([
-        nodesApi.getList({ page: 1, size: 100 }),
-        nodesApi.getStats()
-      ]);
+      const nodesRes = await nodesApi.getList({ page: 1, size: 100 });
+      const statsRes = await nodesApi.getStats();
       setNodes(nodesRes.items || []);
       setStats(statsRes);
     } catch (err: any) {

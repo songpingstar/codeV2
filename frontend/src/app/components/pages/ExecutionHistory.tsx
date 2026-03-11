@@ -19,7 +19,7 @@ interface ExecutionRecord {
   script_name: string;
   script_id: number;
   executor: string;
-  status: 'success' | 'failed' | 'running';
+  status: 'success' | 'failed' | 'running' | 'pending' | 'cancelled';
   duration: number;
   environment: 'dev' | 'test' | 'prod';
   node_count: number;
@@ -33,7 +33,7 @@ interface ExecutionStats {
 }
 
 interface ExecutionHistoryProps {
-  onViewLog?: (recordId: string) => void;
+  onViewLog?: (record: ExecutionRecord) => void;
 }
 
 export function ExecutionHistory({ onViewLog }: ExecutionHistoryProps) {
@@ -51,10 +51,17 @@ export function ExecutionHistory({ onViewLog }: ExecutionHistoryProps) {
     try {
       setLoading(true);
       setError('');
-      const [recordsRes, statsRes] = await Promise.all([
-        executionsApi.getList({ page, size: 8 }),
-        executionsApi.getStats()
-      ]);
+      
+      const recordsRes = await executionsApi.getList({ 
+        page, 
+        size: 8,
+        keyword: searchTerm || undefined,
+        status: statusFilter !== 'all' ? statusFilter : undefined,
+        environment: environmentFilter !== 'all' ? environmentFilter : undefined
+      });
+      
+      const statsRes = await executionsApi.getStats();
+      
       const items = (recordsRes.items || []).map((item: any) => ({
         ...item,
         id: item.execution_id,
@@ -73,15 +80,21 @@ export function ExecutionHistory({ onViewLog }: ExecutionHistoryProps) {
 
   useEffect(() => {
     loadData();
-  }, [page]);
+  }, [page, searchTerm, statusFilter, environmentFilter]);
 
-  const filteredRecords = records.filter((record) => {
-    const matchesSearch = record.script_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         record.executor.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || record.status === statusFilter;
-    const matchesEnvironment = environmentFilter === 'all' || record.environment === environmentFilter;
-    return matchesSearch && matchesStatus && matchesEnvironment;
-  });
+  useEffect(() => {
+    const hasRunningTasks = records.some(r => r.status === 'running');
+    
+    if (hasRunningTasks) {
+      const interval = setInterval(() => {
+        loadData();
+      }, 5000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [records]);
+
+  const filteredRecords = records;
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
@@ -97,16 +110,33 @@ export function ExecutionHistory({ onViewLog }: ExecutionHistoryProps) {
       },
       running: {
         icon: Clock,
-        text: '执行中',
+        text: '运行中',
         className: 'bg-blue-50 text-blue-700 border-blue-200',
+        animated: true,
+      },
+      pending: {
+        icon: Clock,
+        text: '运行中',
+        className: 'bg-blue-50 text-blue-700 border-blue-200',
+        animated: true,
+      },
+      cancelled: {
+        icon: XCircle,
+        text: '已取消',
+        className: 'bg-yellow-50 text-yellow-700 border-yellow-200',
       },
     };
 
-    const config = statusConfig[status as keyof typeof statusConfig];
+    const config = statusConfig[status as keyof typeof statusConfig] || {
+      icon: Clock,
+      text: status || '未知',
+      className: 'bg-gray-50 text-gray-700 border-gray-200',
+    };
     const Icon = config.icon;
+    const isAnimated = (config as any).animated;
 
     return (
-      <span className={`inline-flex items-center px-2.5 py-1 rounded text-xs font-medium border ${config.className}`}>
+      <span className={`inline-flex items-center px-2.5 py-1 rounded text-xs font-medium border ${config.className} ${isAnimated ? 'animate-pulse' : ''}`}>
         <Icon className="w-3.5 h-3.5 mr-1.5" />
         {config.text}
       </span>
@@ -120,7 +150,10 @@ export function ExecutionHistory({ onViewLog }: ExecutionHistoryProps) {
       prod: { text: 'PROD', className: 'bg-red-100 text-red-700' },
     };
 
-    const config = envConfig[env as keyof typeof envConfig];
+    const config = envConfig[env as keyof typeof envConfig] || {
+      text: env?.toUpperCase() || 'UNKNOWN',
+      className: 'bg-gray-100 text-gray-700',
+    };
 
     return (
       <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${config.className}`}>
@@ -140,21 +173,31 @@ export function ExecutionHistory({ onViewLog }: ExecutionHistoryProps) {
 
   return (
     <div className="space-y-6">
-      {/* Error Message */}
-      {error && (
+      {loading && (
+        <div className="flex items-center justify-center h-64">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+            <span className="text-sm text-gray-500">加载中...</span>
+          </div>
+        </div>
+      )}
+
+      {!loading && error && (
         <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-md text-red-700">
           <AlertCircle className="w-5 h-5" />
           <span>{error}</span>
         </div>
       )}
-
-      {/* Page Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">执行记录</h1>
-        <p className="text-sm text-gray-500 mt-1">查看和分析脚本执行历史记录</p>
-      </div>
-
       {/* Statistics */}
+      {!loading && !error && (
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">执行记录</h1>
+          <p className="text-sm text-gray-500 mt-1">查看和分析脚本执行历史记录</p>
+        </div>
+      )}
+      
+      {/* Statistics */}
+      {!loading && !error && (
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-6">
@@ -212,8 +255,10 @@ export function ExecutionHistory({ onViewLog }: ExecutionHistoryProps) {
           </CardContent>
         </Card>
       </div>
+      )}
 
       {/* Filters */}
+      {!loading && !error && (
       <Card>
         <CardContent className="pt-6">
           <div className="flex flex-col lg:flex-row gap-4">
@@ -261,8 +306,10 @@ export function ExecutionHistory({ onViewLog }: ExecutionHistoryProps) {
           </div>
         </CardContent>
       </Card>
+      )}
 
       {/* Records Table */}
+      {!loading && !error && (
       <Card>
         <CardContent className="pt-6">
           <div className="overflow-x-auto">
@@ -336,14 +383,12 @@ export function ExecutionHistory({ onViewLog }: ExecutionHistoryProps) {
                         </span>
                       </td>
                       <td className="py-4 px-4">
-                        <div className="flex items-center justify-end">
-                          <Button 
-                            variant="ghost" 
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
                             size="sm"
-                            className="h-8 px-3 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                            onClick={() => onViewLog?.(record.id)}
+                            onClick={() => onViewLog?.(record)}
                           >
-                            <FileText className="w-4 h-4 mr-1" />
                             查看日志
                           </Button>
                         </div>
@@ -355,28 +400,25 @@ export function ExecutionHistory({ onViewLog }: ExecutionHistoryProps) {
             </table>
           </div>
 
-          {/* Pagination Info */}
-          {total > 0 && (
+          {/* Pagination */}
+          {total > 8 && (
             <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
               <div className="text-sm text-gray-500">
-                显示 {filteredRecords.length} 条记录，共 {total} 条
+                共 {total} 条记录，第 {page} 页
               </div>
               <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  disabled={page <= 1}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page === 1}
                   onClick={() => setPage(page - 1)}
                 >
                   上一页
                 </Button>
-                <span className="flex items-center px-2 text-sm text-gray-600">
-                  {page} / {Math.ceil(total / 8)}
-                </span>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  disabled={page >= Math.ceil(total / 8)}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page * 8 >= total}
                   onClick={() => setPage(page + 1)}
                 >
                   下一页
@@ -386,6 +428,7 @@ export function ExecutionHistory({ onViewLog }: ExecutionHistoryProps) {
           )}
         </CardContent>
       </Card>
+      )}
     </div>
   );
 }

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Plus, X, Server } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Plus, X, Server, Loader2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -20,52 +20,38 @@ import {
   SelectValue,
 } from '@/app/components/ui/select';
 import { Checkbox } from '@/app/components/ui/checkbox';
+import { scriptsApi } from '@/app/api/scripts';
+import { tasksApi } from '@/app/api/tasks';
 
 interface TaskDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   mode?: 'create' | 'edit';
   task?: {
-    id: string;
+    id: number;
     name: string;
-    scriptId: string;
-    cronExpression: string;
-    description?: string;
-    environment?: string;
-    executionMode?: 'specified' | 'all';
-    targetNodes?: string[];
+    script_id: number;
+    cron_expression: string;
+    cron_description?: string;
+    environment: string;
+    execution_mode: string;
+    target_nodes?: number[];
   };
+  onSuccess?: () => void;
 }
 
-const mockScripts = [
-  { id: '1', name: '系统巡检脚本' },
-  { id: '2', name: '日志清理任务' },
-  { id: '3', name: '数据库备份' },
-  { id: '4', name: '应用部署脚本' },
-  { id: '5', name: '监控数据采集' },
-  { id: '7', name: '磁盘空间检查' },
-];
+interface ScriptOption {
+  id: number;
+  name: string;
+}
 
-const mockNodes = [
-  // 开发环境节点
-  { id: 'dev-1', name: 'dev-web-01', ip: '192.168.10.10', status: 'online', environment: 'dev' },
-  { id: 'dev-2', name: 'dev-web-02', ip: '192.168.10.11', status: 'online', environment: 'dev' },
-  { id: 'dev-3', name: 'dev-db-01', ip: '192.168.10.20', status: 'online', environment: 'dev' },
-  
-  // 测试环境节点
-  { id: 'test-1', name: 'test-web-01', ip: '192.168.20.10', status: 'online', environment: 'test' },
-  { id: 'test-2', name: 'test-web-02', ip: '192.168.20.11', status: 'online', environment: 'test' },
-  { id: 'test-3', name: 'test-db-01', ip: '192.168.20.20', status: 'offline', environment: 'test' },
-  { id: 'test-4', name: 'test-cache-01', ip: '192.168.20.30', status: 'online', environment: 'test' },
-  
-  // 生产环境节点
-  { id: 'prod-1', name: 'prod-web-01', ip: '192.168.1.10', status: 'online', environment: 'prod' },
-  { id: 'prod-2', name: 'prod-web-02', ip: '192.168.1.11', status: 'online', environment: 'prod' },
-  { id: 'prod-3', name: 'prod-db-01', ip: '192.168.1.20', status: 'online', environment: 'prod' },
-  { id: 'prod-4', name: 'prod-db-02', ip: '192.168.1.21', status: 'online', environment: 'prod' },
-  { id: 'prod-5', name: 'prod-cache-01', ip: '192.168.1.30', status: 'online', environment: 'prod' },
-  { id: 'prod-6', name: 'prod-app-01', ip: '192.168.1.40', status: 'offline', environment: 'prod' },
-];
+interface NodeOption {
+  id: number;
+  name: string;
+  ip: string;
+  status: string;
+  environment: string;
+}
 
 const cronPresets = [
   { label: '每小时', value: '0 * * * *', description: '每小时的第 0 分钟执行' },
@@ -83,33 +69,114 @@ export function TaskDialog({
   onOpenChange,
   mode = 'create',
   task,
+  onSuccess,
 }: TaskDialogProps) {
   const [formData, setFormData] = useState({
     name: task?.name || '',
-    scriptId: task?.scriptId || '',
-    cronExpression: task?.cronExpression || '',
-    description: task?.description || '',
+    scriptId: task?.script_id?.toString() || '',
+    cronExpression: task?.cron_expression || '',
+    cronDescription: task?.cron_description || '',
     environment: task?.environment || 'dev',
-    executionMode: task?.executionMode || 'specified' as 'specified' | 'all',
-    targetNodes: task?.targetNodes || [] as string[],
+    executionMode: task?.execution_mode || 'specified',
+    targetNodes: task?.target_nodes?.map(String) || [] as string[],
   });
 
+  const [scripts, setScripts] = useState<ScriptOption[]>([]);
+  const [nodes, setNodes] = useState<NodeOption[]>([]);
+  const [loadingScripts, setLoadingScripts] = useState(false);
+  const [loadingNodes, setLoadingNodes] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [usePreset, setUsePreset] = useState(true);
 
-  const handleSubmit = () => {
-    console.log('Task data:', formData);
-    onOpenChange(false);
-    // Reset form
-    setFormData({
-      name: '',
-      scriptId: '',
-      cronExpression: '',
-      description: '',
-      environment: 'dev',
-      executionMode: 'specified',
-      targetNodes: [],
-    });
-  };
+  useEffect(() => {
+    if (open) {
+      loadScripts();
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (formData.environment) {
+      loadNodes();
+    }
+  }, [formData.environment]);
+
+  useEffect(() => {
+    if (task && open) {
+      setFormData({
+        name: task.name || '',
+        scriptId: task.script_id?.toString() || '',
+        cronExpression: task.cron_expression || '',
+        cronDescription: task.cron_description || '',
+        environment: task.environment || 'dev',
+        executionMode: task.execution_mode || 'specified',
+        targetNodes: task.target_nodes?.map(String) || [],
+      });
+    }
+  }, [task, open]);
+
+  async function loadScripts() {
+    try {
+      setLoadingScripts(true);
+      const res = await scriptsApi.getList({ page: 1, size: 100 });
+      setScripts(res.items || []);
+    } catch (err) {
+      console.error('Failed to load scripts:', err);
+    } finally {
+      setLoadingScripts(false);
+    }
+  }
+
+  async function loadNodes() {
+    try {
+      setLoadingNodes(true);
+      const res = await tasksApi.getAvailableNodes(formData.environment);
+      setNodes(res || []);
+    } catch (err) {
+      console.error('Failed to load nodes:', err);
+    } finally {
+      setLoadingNodes(false);
+    }
+  }
+
+  async function handleSubmit() {
+    try {
+      setSubmitting(true);
+      
+      const payload = {
+        name: formData.name,
+        script_id: parseInt(formData.scriptId),
+        cron_expression: formData.cronExpression,
+        cron_description: formData.cronDescription || undefined,
+        environment: formData.environment,
+        execution_mode: formData.executionMode,
+        target_nodes: formData.targetNodes.map(Number),
+      };
+
+      if (mode === 'create') {
+        await tasksApi.create(payload);
+      } else if (mode === 'edit' && task?.id) {
+        await tasksApi.update(task.id, payload);
+      }
+
+      onOpenChange(false);
+      onSuccess?.();
+      
+      setFormData({
+        name: '',
+        scriptId: '',
+        cronExpression: '',
+        cronDescription: '',
+        environment: 'dev',
+        executionMode: 'specified',
+        targetNodes: [],
+      });
+    } catch (err: any) {
+      console.error('Failed to submit task:', err);
+      alert(err.response?.data?.message || '提交失败');
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   const handlePresetChange = (value: string) => {
     setFormData({ ...formData, cronExpression: value });
@@ -120,41 +187,41 @@ export function TaskDialog({
     return preset?.description || '';
   };
 
-  const toggleNode = (nodeId: string) => {
-    setFormData(prev => ({
-      ...prev,
-      targetNodes: prev.targetNodes.includes(nodeId)
-        ? prev.targetNodes.filter(id => id !== nodeId)
-        : [...prev.targetNodes, nodeId],
-    }));
+  const handleNodeToggle = (nodeId: number) => {
+    const nodeIdStr = nodeId.toString();
+    setFormData(prev => {
+      const currentNodes = prev.targetNodes;
+      const isSelected = currentNodes.includes(nodeIdStr);
+      return {
+        ...prev,
+        targetNodes: isSelected
+          ? currentNodes.filter(id => id !== nodeIdStr)
+          : [...currentNodes, nodeIdStr],
+      };
+    });
   };
 
-  // Filter nodes by selected environment
-  const environmentNodes = mockNodes.filter(n => n.environment === formData.environment);
+  const environmentNodes = nodes.filter(n => n.environment === formData.environment);
   const onlineNodesInEnv = environmentNodes.filter(n => n.status === 'online');
   
-  // Handle environment change - clear selected nodes when environment changes
-  const handleEnvironmentChange = (env: 'dev' | 'test' | 'prod') => {
+  const handleEnvironmentChange = (env: string) => {
     setFormData(prev => ({
       ...prev,
       environment: env,
-      targetNodes: [], // Clear node selection when environment changes
+      targetNodes: [],
     }));
   };
 
-  // Handle select all / deselect all
   const handleSelectAll = () => {
-    const allOnlineNodeIds = onlineNodesInEnv.map(n => n.id);
+    const allOnlineNodeIds = onlineNodesInEnv.map(n => n.id.toString());
     const allSelected = allOnlineNodeIds.every(id => formData.targetNodes.includes(id));
     
     if (allSelected) {
-      // Deselect all
       setFormData(prev => ({
         ...prev,
         targetNodes: [],
       }));
     } else {
-      // Select all online nodes
       setFormData(prev => ({
         ...prev,
         targetNodes: allOnlineNodeIds,
@@ -163,36 +230,23 @@ export function TaskDialog({
   };
 
   const isAllSelected = onlineNodesInEnv.length > 0 && 
-                        onlineNodesInEnv.every(n => formData.targetNodes.includes(n.id));
+                        onlineNodesInEnv.every(n => formData.targetNodes.includes(n.id.toString()));
 
   const getEnvironmentConfig = (env: string) => {
-    const configs = {
-      dev: {
-        label: '开发环境',
-        color: 'bg-blue-50 border-blue-200',
-        textColor: 'text-blue-700',
-        dotColor: 'bg-blue-500',
-      },
-      test: {
-        label: '测试环境',
-        color: 'bg-yellow-50 border-yellow-200',
-        textColor: 'text-yellow-700',
-        dotColor: 'bg-yellow-500',
-      },
-      prod: {
-        label: '生产环境',
-        color: 'bg-red-50 border-red-200',
-        textColor: 'text-red-700',
-        dotColor: 'bg-red-500',
-      },
+    const configs: Record<string, { label: string; color: string; textColor: string; dotColor: string }> = {
+      dev: { label: '开发环境', color: 'bg-blue-50 border-blue-200', textColor: 'text-blue-700', dotColor: 'bg-blue-500' },
+      test: { label: '测试环境', color: 'bg-yellow-50 border-yellow-200', textColor: 'text-yellow-700', dotColor: 'bg-yellow-500' },
+      prod: { label: '生产环境', color: 'bg-red-50 border-red-200', textColor: 'text-red-700', dotColor: 'bg-red-500' },
     };
-    return configs[env as keyof typeof configs];
+    return configs[env] || configs.dev;
   };
 
   const isFormValid = formData.name && 
                       formData.scriptId && 
                       formData.cronExpression &&
                       formData.targetNodes.length > 0;
+
+  const envConfig = getEnvironmentConfig(formData.environment);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -207,7 +261,6 @@ export function TaskDialog({
         </DialogHeader>
 
         <div className="space-y-5 py-4">
-          {/* Task Name */}
           <div className="space-y-2">
             <Label htmlFor="taskName" className="text-sm font-medium">
               任务名称 *
@@ -220,7 +273,6 @@ export function TaskDialog({
             />
           </div>
 
-          {/* Script Selection */}
           <div className="space-y-2">
             <Label htmlFor="script" className="text-sm font-medium">
               关联脚本 *
@@ -230,23 +282,32 @@ export function TaskDialog({
               onValueChange={(value) => setFormData({ ...formData, scriptId: value })}
             >
               <SelectTrigger id="script">
-                <SelectValue placeholder="选择要执行的脚本" />
+                <SelectValue placeholder={loadingScripts ? "加载中..." : "选择要执行的脚本"} />
               </SelectTrigger>
               <SelectContent>
-                {mockScripts.map((script) => (
-                  <SelectItem key={script.id} value={script.id}>
-                    {script.name}
-                  </SelectItem>
-                ))}
+                {loadingScripts ? (
+                  <div className="flex items-center justify-center p-4">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="ml-2 text-sm">加载中...</span>
+                  </div>
+                ) : scripts.length === 0 ? (
+                  <div className="p-4 text-center text-sm text-gray-500">
+                    暂无可用脚本
+                  </div>
+                ) : (
+                  scripts.map((script) => (
+                    <SelectItem key={script.id} value={script.id.toString()}>
+                      {script.name}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
           </div>
 
-          {/* Cron Expression */}
           <div className="space-y-3">
             <Label className="text-sm font-medium">执行计划 (Cron) *</Label>
             
-            {/* Preset/Custom Toggle */}
             <div className="flex gap-2 mb-3">
               <Button
                 type="button"
@@ -318,11 +379,9 @@ export function TaskDialog({
             )}
           </div>
 
-          {/* Execution Environment & Target Nodes */}
           <div className="space-y-4">
             <Label className="text-sm font-medium">执行配置 *</Label>
             
-            {/* Environment Selection */}
             <div className="space-y-2">
               <div className="text-xs font-medium text-gray-700">执行环境</div>
               <Select value={formData.environment} onValueChange={handleEnvironmentChange}>
@@ -351,14 +410,12 @@ export function TaskDialog({
                 </SelectContent>
               </Select>
               
-              {/* Environment Badge */}
-              <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-xs font-medium ${getEnvironmentConfig(formData.environment).color} ${getEnvironmentConfig(formData.environment).textColor}`}>
-                <div className={`w-1.5 h-1.5 rounded-full ${getEnvironmentConfig(formData.environment).dotColor}`}></div>
-                当前环境: {getEnvironmentConfig(formData.environment).label}
+              <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-xs font-medium ${envConfig.color} ${envConfig.textColor}`}>
+                <div className={`w-1.5 h-1.5 rounded-full ${envConfig.dotColor}`}></div>
+                当前环境: {envConfig.label}
               </div>
             </div>
 
-            {/* Target Nodes Selection */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <div className="text-xs font-medium text-gray-700">
@@ -378,25 +435,33 @@ export function TaskDialog({
               </div>
               
               <div className="border border-gray-200 rounded-md divide-y divide-gray-100 max-h-64 overflow-y-auto">
-                {environmentNodes.length === 0 ? (
+                {loadingNodes ? (
+                  <div className="flex items-center justify-center p-4">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="ml-2 text-sm">加载节点...</span>
+                  </div>
+                ) : environmentNodes.length === 0 ? (
                   <div className="p-4 text-center text-sm text-gray-500">
-                    该环境暂无节点
+                    该环境暂无在线节点
                   </div>
                 ) : (
                   environmentNodes.map((node) => (
-                    <div
+                    <label
                       key={node.id}
-                      className={`flex items-center gap-3 p-3 transition-colors ${
+                      className={`flex items-center gap-3 p-3 transition-colors cursor-pointer ${
                         node.status === 'online' 
-                          ? 'hover:bg-gray-50 cursor-pointer' 
-                          : 'bg-gray-50 opacity-60 cursor-not-allowed'
+                          ? 'hover:bg-gray-50' 
+                          : 'opacity-60 cursor-not-allowed'
                       }`}
-                      onClick={() => node.status === 'online' && toggleNode(node.id)}
                     >
                       <Checkbox
-                        checked={formData.targetNodes.includes(node.id)}
-                        onCheckedChange={() => node.status === 'online' && toggleNode(node.id)}
-                        disabled={node.status === 'offline'}
+                        checked={formData.targetNodes.includes(node.id.toString())}
+                        onCheckedChange={() => {
+                          if (node.status === 'online') {
+                            handleNodeToggle(node.id);
+                          }
+                        }}
+                        disabled={node.status !== 'online'}
                       />
                       <Server className={`w-4 h-4 ${
                         node.status === 'online' ? 'text-green-600' : 'text-gray-400'
@@ -414,7 +479,7 @@ export function TaskDialog({
                         </div>
                         <div className="text-xs text-gray-500">{node.ip}</div>
                       </div>
-                    </div>
+                    </label>
                   ))
                 )}
               </div>
@@ -429,7 +494,6 @@ export function TaskDialog({
             </div>
           </div>
 
-          {/* Description */}
           <div className="space-y-2">
             <Label htmlFor="description" className="text-sm font-medium">
               任务描述
@@ -437,13 +501,12 @@ export function TaskDialog({
             <Textarea
               id="description"
               placeholder="描述任务的用途和注意事项"
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              value={formData.cronDescription}
+              onChange={(e) => setFormData({ ...formData, cronDescription: e.target.value })}
               rows={3}
             />
           </div>
 
-          {/* Info Box */}
           <div className="bg-gray-50 border border-gray-200 rounded-md p-4">
             <h4 className="text-sm font-medium text-gray-900 mb-2">注意事项</h4>
             <ul className="text-xs text-gray-600 space-y-1 list-disc list-inside">
@@ -467,9 +530,10 @@ export function TaskDialog({
           <Button
             type="button"
             onClick={handleSubmit}
-            disabled={!isFormValid}
+            disabled={!isFormValid || submitting}
             className="bg-blue-600 hover:bg-blue-700"
           >
+            {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             <Plus className="w-4 h-4 mr-2" />
             {mode === 'create' ? '创建任务' : '保存修改'}
           </Button>
