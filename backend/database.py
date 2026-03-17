@@ -52,10 +52,25 @@ def init_db():
             print("nodes表已添加node_token字段")
     
     from app.models import ScriptCategory, RegistrationToken
+    from app.models.user import User
+    from app.core.security import get_password_hash
     from sqlalchemy.orm import Session
     
     session = Session(bind=engine)
     try:
+        existing_user = session.query(User).filter_by(username="admin").first()
+        if not existing_user:
+            admin_user = User(
+                username="admin",
+                email="admin@example.com",
+                role="admin",
+                status="active",
+                password_hash=get_password_hash("admin123")
+            )
+            session.add(admin_user)
+            session.commit()
+            print("初始管理员用户已创建: admin / admin123")
+        
         existing = session.query(ScriptCategory).first()
         if not existing:
             categories = [

@@ -127,6 +127,9 @@ description: "Generates comprehensive design documents from Figma prototype for 
 4. 数据库设计
 5. FastAPI 中间件示例
 
+**设计参考**：
+- ⚠️ 本阶段设计时，应参考 `rbac-implementation` skill 的权限模型和实现方案
+
 
 ## 使用指南
 

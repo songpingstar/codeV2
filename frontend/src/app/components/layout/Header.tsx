@@ -7,13 +7,28 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/app/components/ui/dropdown-menu';
+import { getUserInfo } from '@/app/utils/permissions';
+import { useEffect, useState } from 'react';
 
 interface HeaderProps {
   onLogout?: () => void;
   onNavigate?: (page: string) => void;
 }
 
+interface UserInfo {
+  username: string;
+  email?: string;
+  role?: string;
+}
+
 export function Header({ onLogout, onNavigate }: HeaderProps) {
+  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
+
+  useEffect(() => {
+    const info = getUserInfo();
+    setUserInfo(info);
+  }, []);
+
   return (
     <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 fixed top-0 right-0 left-56 z-10">
       {/* Right Section */}
@@ -37,8 +52,8 @@ export function Header({ onLogout, onNavigate }: HeaderProps) {
                 <User className="w-4 h-4 text-white" />
               </div>
               <div className="text-left hidden md:block">
-                <div className="text-sm font-medium text-gray-900">运维工程师</div>
-                <div className="text-xs text-gray-500">admin@ops.com</div>
+                <div className="text-sm font-medium text-gray-900">{userInfo?.username || '未登录'}</div>
+                <div className="text-xs text-gray-500">{userInfo?.email || ''}</div>
               </div>
             </button>
           </DropdownMenuTrigger>

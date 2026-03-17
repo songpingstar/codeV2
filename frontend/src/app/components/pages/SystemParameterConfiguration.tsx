@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
+import { hasPermission } from '@/app/utils/permissions';
 import { Label } from '@/app/components/ui/label';
 import { Input } from '@/app/components/ui/input';
 import {

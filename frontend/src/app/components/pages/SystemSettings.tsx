@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
+import { hasPermission } from '@/app/utils/permissions';
 import { Label } from '@/app/components/ui/label';
 import { Input } from '@/app/components/ui/input';
 import {
@@ -86,8 +87,8 @@ const settingMenus: SettingMenuItem[] = [
   { id: 'system', label: '系统参数', icon: Settings },
 ];
 
-export function SystemSettings() {
-  const [activeSection, setActiveSection] = useState('users');
+export function SystemSettings({ initialSection = 'categories' }: { initialSection?: string }) {
+  const [activeSection, setActiveSection] = useState(initialSection);
   const [hasChanges, setHasChanges] = useState(false);
 
   // Script categories state
@@ -183,6 +184,7 @@ export function SystemSettings() {
           <h2 className="text-xl font-bold text-gray-900">脚本分类管理</h2>
           <p className="text-sm text-gray-500 mt-1">管理脚本的分类标签，便于组织和查找脚本</p>
         </div>
+        {hasPermission("category:create") && (
         <Button 
           className="bg-blue-600 hover:bg-blue-700"
           onClick={() => setEditingCategory({ id: 'new', name: '', description: '', color: 'blue' })}
@@ -190,6 +192,7 @@ export function SystemSettings() {
           <Plus className="w-4 h-4 mr-2" />
           新建分类
         </Button>
+        )}
       </div>
 
       {/* Error Message */}
@@ -234,6 +237,7 @@ export function SystemSettings() {
                       </div>
                     </div>
                     <div className="flex gap-2">
+                      {hasPermission("category:update") && (
                       <Button
                         variant="ghost"
                         size="sm"
@@ -242,6 +246,8 @@ export function SystemSettings() {
                       >
                         <Edit className="w-4 h-4" />
                       </Button>
+                      )}
+                      {hasPermission("category:delete") && (
                       <Button
                         variant="ghost"
                         size="sm"
@@ -251,6 +257,7 @@ export function SystemSettings() {
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
+                      )}
                     </div>
                   </div>
                 );
@@ -406,39 +413,8 @@ export function SystemSettings() {
   };
 
   return (
-    <div className="flex gap-6">
-      {/* Left Sidebar - Settings Menu */}
-      <div className="w-56 flex-shrink-0">
-        <Card className="sticky top-6">
-          <CardContent className="pt-6">
-            <nav className="space-y-1">
-              {settingMenus.map((menu) => {
-                const Icon = menu.icon;
-                const isActive = activeSection === menu.id;
-                return (
-                  <button
-                    key={menu.id}
-                    onClick={() => setActiveSection(menu.id)}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                      isActive
-                        ? 'bg-blue-50 text-blue-700'
-                        : 'text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    <Icon className={`w-4 h-4 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
-                    <span>{menu.label}</span>
-                  </button>
-                );
-              })}
-            </nav>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Right Content Area */}
-      <div className="flex-1 min-w-0">
-        {renderContent()}
-      </div>
+    <div className="flex-1 min-w-0">
+      {renderContent()}
     </div>
   );
 }

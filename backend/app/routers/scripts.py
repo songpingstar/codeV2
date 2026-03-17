@@ -4,6 +4,7 @@ from typing import List, Optional
 from sqlalchemy.orm import Session
 from app.core.response import SuccessResponse
 from app.services.script_service import ScriptService
+from app.core.dependencies import require_permission
 from database import get_db
 
 router = APIRouter(prefix="/scripts", tags=["Script"])
@@ -40,7 +41,8 @@ async def get_scripts(
     keyword: Optional[str] = None,
     type: Optional[str] = None,
     category_id: Optional[int] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(require_permission("script:view"))
 ):
     service = ScriptService(db)
     result = service.get_scripts(page, size, keyword, type, category_id)
@@ -52,6 +54,7 @@ async def search_scripts(
     keyword: str = Query(..., min_length=1),
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
+    user: dict = Depends(require_permission("script:view"))
 ):
     return SuccessResponse.create(data={
         "total": 5,
@@ -62,7 +65,8 @@ async def search_scripts(
 @router.post("")
 async def create_script(
     script: ScriptCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(require_permission("script:create"))
 ):
     service = ScriptService(db)
     result = service.create_script(script.model_dump())
@@ -73,7 +77,8 @@ async def create_script(
 async def update_script(
     id: int = Path(..., ge=1),
     script: ScriptUpdate = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(require_permission("script:update"))
 ):
     service = ScriptService(db)
     result = service.update_script(id, script.model_dump(exclude_unset=True))
@@ -83,7 +88,8 @@ async def update_script(
 @router.delete("/{id}")
 async def delete_script(
     id: int = Path(..., ge=1),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(require_permission("script:delete"))
 ):
     service = ScriptService(db)
     service.delete_script(id)
@@ -93,7 +99,8 @@ async def delete_script(
 @router.get("/{id}")
 async def get_script_detail(
     id: int = Path(..., ge=1),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(require_permission("script:view"))
 ):
     service = ScriptService(db)
     result = service.get_script_by_id(id)
@@ -104,7 +111,8 @@ async def get_script_detail(
 async def execute_script(
     id: int = Path(..., ge=1),
     request: ScriptExecuteRequest = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(require_permission("script:execute"))
 ):
     from app.routers.ws_agent import push_task_to_node
     from app.models import Script
@@ -118,16 +126,5 @@ async def execute_script(
     )
     
     script = db.query(Script).filter(Script.id == id).first()
-    if script:
-        for node_id in (request.node_ids if request else []):
-            await push_task_to_node(node_id, {
-                "execution_id": result["execution_id"],
-                "script_id": script.id,
-                "script_name": script.name,
-                "script_type": script.type,
-                "script_content": script.content,
-                "environment": request.environment if request else "prod",
-                "parameters": request.parameters if request else {}
-            })
     
     return SuccessResponse.create(data=result)

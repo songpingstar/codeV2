@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
+import { hasPermission } from '@/app/utils/permissions';
 import {
   Dialog,
   DialogContent,
@@ -220,6 +221,7 @@ export function NodeDetail({ nodeId, onBack }: NodeDetailProps) {
 
         {/* Action Buttons */}
         <div className="flex items-center gap-3">
+          {hasPermission("node:delete") && (
           <Button
             variant="outline"
             onClick={() => setIsDeleteDialogOpen(true)}
@@ -228,6 +230,7 @@ export function NodeDetail({ nodeId, onBack }: NodeDetailProps) {
             <Trash2 className="w-4 h-4 mr-2" />
             删除节点
           </Button>
+          )}
         </div>
       </div>
 

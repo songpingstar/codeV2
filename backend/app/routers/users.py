@@ -1,7 +1,11 @@
 from fastapi import APIRouter, Depends, Query, Path
 from pydantic import BaseModel
 from typing import Optional
+from sqlalchemy.orm import Session
 from app.core.response import SuccessResponse
+from app.services.user_service import UserService
+from app.core.dependencies import require_permission
+from database import get_db
 
 router = APIRouter(prefix="/users", tags=["User"])
 
@@ -25,7 +29,7 @@ class PasswordChange(BaseModel):
 
 
 class PasswordReset(BaseModel):
-    password: str
+    password: str = ""
 
 
 @router.get("")
@@ -35,59 +39,55 @@ async def get_users(
     keyword: Optional[str] = None,
     role: Optional[str] = None,
     status: Optional[str] = None,
+    db: Session = Depends(get_db),
+    user: dict = Depends(require_permission("user:view"))
 ):
-    return SuccessResponse.create(data={
-        "total": 5,
-        "items": []
-    })
+    service = UserService(db)
+    result = service.get_users(page, size, keyword, role, status)
+    return SuccessResponse.create(data=result)
 
 
 @router.post("")
 async def create_user(
     user: UserCreate,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_permission("user:create"))
 ):
-    return SuccessResponse.create(data={
-        "id": 1,
-        "username": user.username,
-        "email": user.email,
-        "role": user.role,
-        "status": "active",
-        "created_at": "2026-02-28 10:00:00"
-    })
+    service = UserService(db)
+    result = service.create_user(user.model_dump())
+    return SuccessResponse.create(data=result)
 
 
 @router.put("/{id}")
 async def update_user(
     id: int = Path(..., ge=1),
     user: UserUpdate = None,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_permission("user:update"))
 ):
-    return SuccessResponse.create(data={
-        "id": id,
-        "username": "test",
-        "email": user.email,
-        "role": user.role,
-        "status": user.status,
-        "updated_at": "2026-02-28 10:00:00"
-    })
+    service = UserService(db)
+    result = service.update_user(id, user.model_dump(exclude_unset=True))
+    return SuccessResponse.create(data=result)
 
 
 @router.delete("/{id}")
 async def delete_user(
     id: int = Path(..., ge=1),
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_permission("user:delete"))
 ):
+    service = UserService(db)
+    service.delete_user(id)
     return SuccessResponse.create(data=None)
 
 
-@router.put("/{id}/reset-password")
+@router.post("/{id}/password/reset")
 async def reset_user_password(
     id: int = Path(..., ge=1),
     request: PasswordReset = None,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_permission("user:reset"))
 ):
-    return SuccessResponse.create(data=None)
-
-
-@router.put("/me/change-password")
-async def change_my_password(
-    request: PasswordChange = None,
-):
+    service = UserService(db)
+    service.reset_password(id, request.password if request else "")
     return SuccessResponse.create(data=None)

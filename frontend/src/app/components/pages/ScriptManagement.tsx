@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Plus, Search, Eye, Edit, Trash2, Play, MoreVertical } from 'lucide-react';
 import { Card, CardContent } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
+import { hasPermission } from '@/app/utils/permissions';
 import {
   Select,
   SelectContent,
@@ -26,7 +27,7 @@ import {
   AlertDialogTitle,
 } from '@/app/components/ui/alert-dialog';
 import { ScriptDetail } from '@/app/components/pages/ScriptDetail';
-import { ScriptExecuteDialog } from '@/app/components/ScriptExecuteDialog';
+import { ScriptExecuteDialog } from '@/app/components/dialogs/ScriptExecuteDialog';
 import { scriptsApi } from '@/app/api/scripts';
 import { scriptCategoriesApi } from '@/app/api/script-categories';
 
@@ -176,10 +177,12 @@ export function ScriptManagement() {
           <h1 className="text-2xl font-bold text-gray-900">脚本管理</h1>
           <p className="text-sm text-gray-500 mt-1">管理 Python 和 Shell 运维脚本</p>
         </div>
+        {hasPermission("script:create") && (
         <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleCreate}>
           <Plus className="w-4 h-4 mr-2" />
           新建脚本
         </Button>
+        )}
       </div>
 
       {/* Filters */}
@@ -311,6 +314,7 @@ export function ScriptManagement() {
                           >
                             <Eye className="w-4 h-4" />
                           </Button>
+                          {hasPermission("script:execute") && (
                           <Button 
                             variant="ghost" 
                             size="sm"
@@ -319,6 +323,7 @@ export function ScriptManagement() {
                           >
                             <Play className="w-4 h-4" />
                           </Button>
+                          )}
                           
                           {/* More Actions Dropdown */}
                           <DropdownMenu>
@@ -332,18 +337,24 @@ export function ScriptManagement() {
                                 <Eye className="mr-2 h-4 w-4" />
                                 查看详情
                               </DropdownMenuItem>
+                              {hasPermission("script:update") && (
                               <DropdownMenuItem onClick={() => handleEdit(script.id)}>
                                 <Edit className="mr-2 h-4 w-4" />
                                 编辑脚本
                               </DropdownMenuItem>
+                              )}
+                              {hasPermission("script:execute") && (
                               <DropdownMenuItem onClick={() => { setSelectedScriptId(script.id); setShowExecuteDialog(true); }}>
                                 <Play className="mr-2 h-4 w-4" />
                                 立即执行
                               </DropdownMenuItem>
+                              )}
+                              {hasPermission("script:delete") && (
                               <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteClick(script.id)}>
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 删除脚本
                               </DropdownMenuItem>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>

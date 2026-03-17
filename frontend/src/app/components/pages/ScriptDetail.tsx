@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Save, Play, ArrowLeft, Copy, Check, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
+import { hasPermission } from '@/app/utils/permissions';
 import { Input } from '@/app/components/ui/input';
 import { Label } from '@/app/components/ui/label';
 import { Textarea } from '@/app/components/ui/textarea';
@@ -12,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/app/components/ui/select';
-import { ScriptExecuteDialog } from '@/app/components/ScriptExecuteDialog';
+import { ScriptExecuteDialog } from '@/app/components/dialogs/ScriptExecuteDialog';
 import { copyToClipboard } from '@/app/utils/clipboard';
 import { scriptsApi } from '@/app/api/scripts';
 import { scriptCategoriesApi } from '@/app/api/script-categories';
@@ -355,7 +356,7 @@ export function ScriptDetail({ onBack, scriptId, viewOnly = false }: ScriptDetai
 
       {/* Bottom Action Buttons */}
       <div className="flex items-center justify-end gap-3">
-        {!isNew && (
+        {!isNew && hasPermission("script:execute") && (
           <Button
             variant="outline"
             className="text-green-600 border-green-600 hover:bg-green-50"
@@ -365,7 +366,7 @@ export function ScriptDetail({ onBack, scriptId, viewOnly = false }: ScriptDetai
             执行脚本
           </Button>
         )}
-        {!viewOnly && (
+        {!viewOnly && hasPermission(isNew ? "script:create" : "script:update") && (
           <Button 
             className="bg-blue-600 hover:bg-blue-700"
             onClick={handleSave}

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { Card, CardContent } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
+import { hasPermission } from '@/app/utils/permissions';
 import {
   Select,
   SelectContent,
@@ -330,10 +331,12 @@ export function NodeManagement({ onViewNode }: NodeManagementProps = {}) {
           <h1 className="text-2xl font-bold text-gray-900">节点管理</h1>
           <p className="text-sm text-gray-500 mt-1">管理和监控脚本执行节点</p>
         </div>
+        {hasPermission("node:create") && (
         <Button onClick={handleAddNode} className="bg-blue-600 hover:bg-blue-700">
           <Plus className="w-4 h-4 mr-2" />
           新增节点
         </Button>
+        )}
       </div>
 
       {/* Statistics */}
@@ -548,6 +551,7 @@ export function NodeManagement({ onViewNode }: NodeManagementProps = {}) {
                       </td>
                       <td className="py-4 px-4">
                         <div className="flex items-center justify-end gap-2">
+                          {hasPermission("node:update") && (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -556,6 +560,8 @@ export function NodeManagement({ onViewNode }: NodeManagementProps = {}) {
                           >
                             <Edit2 className="w-4 h-4" />
                           </Button>
+                          )}
+                          {hasPermission("node:update") && (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -572,6 +578,8 @@ export function NodeManagement({ onViewNode }: NodeManagementProps = {}) {
                               <Power className="w-4 h-4" />
                             )}
                           </Button>
+                          )}
+                          {hasPermission("node:delete") && (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -580,6 +588,7 @@ export function NodeManagement({ onViewNode }: NodeManagementProps = {}) {
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
+                          )}
                         </div>
                       </td>
                     </tr>

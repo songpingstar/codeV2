@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
+import { hasPermission } from '@/app/utils/permissions';
 import { Label } from '@/app/components/ui/label';
 import { Input } from '@/app/components/ui/input';
 import {
@@ -261,10 +262,12 @@ export function UserPermissionManagement() {
           <h1 className="text-2xl font-bold text-gray-900">用户与权限管理</h1>
           <p className="text-sm text-gray-500 mt-1">管理系统用户和权限配置</p>
         </div>
+        {hasPermission("user:create") && (
         <Button onClick={handleAddUser} className="bg-blue-600 hover:bg-blue-700">
           <UserPlus className="w-4 h-4 mr-2" />
           新增用户
         </Button>
+        )}
       </div>
 
       {/* Statistics */}
@@ -468,6 +471,7 @@ export function UserPermissionManagement() {
                       </td>
                       <td className="py-4 px-4">
                         <div className="flex items-center justify-end gap-2">
+                          {hasPermission("user:update") && (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -476,6 +480,8 @@ export function UserPermissionManagement() {
                           >
                             <Edit2 className="w-4 h-4" />
                           </Button>
+                          )}
+                          {hasPermission("user:password:reset") && (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -484,7 +490,8 @@ export function UserPermissionManagement() {
                           >
                             <Key className="w-4 h-4" />
                           </Button>
-                          {user.role !== 'admin' && (
+                          )}
+                          {hasPermission("user:update") && user.role !== 'admin' && (
                             <Button
                               variant="ghost"
                               size="sm"

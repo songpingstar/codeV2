@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Plus, Search, Edit, Trash2, Clock, Calendar, Play, Pause, Server, AlertCircle } from 'lucide-react';
 import { Card, CardContent } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
+import { hasPermission } from '@/app/utils/permissions';
 import { Switch } from '@/app/components/ui/switch';
 import { formatDate } from '@/app/utils/datetime';
 import {
@@ -21,7 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/app/components/ui/alert-dialog';
-import { TaskDialog } from '@/app/components/TaskDialog';
+import { TaskDialog } from '@/app/components/dialogs/TaskDialog';
 import { tasksApi } from '@/app/api/tasks';
 
 interface ScheduledTask {
@@ -183,6 +184,7 @@ export function TaskScheduling() {
           <h1 className="text-2xl font-bold text-gray-900">任务调度</h1>
           <p className="text-sm text-gray-500 mt-1">管理和调度定时执行的运维任务</p>
         </div>
+        {hasPermission("task:create") && (
         <Button 
           className="bg-blue-600 hover:bg-blue-700"
           onClick={() => {
@@ -193,6 +195,7 @@ export function TaskScheduling() {
           <Plus className="w-4 h-4 mr-2" />
           新建任务
         </Button>
+        )}
       </div>
 
       {/* Filters */}
@@ -370,14 +373,17 @@ export function TaskScheduling() {
                       <td className="py-4 px-4">
                         <div className="flex items-center gap-3">
                           {getStatusBadge(task.enabled)}
+                          {hasPermission("task:toggle") && (
                           <Switch
                             checked={task.enabled}
                             onCheckedChange={(checked) => handleToggle(task.id, checked)}
                           />
+                          )}
                         </div>
                       </td>
                       <td className="py-4 px-4">
                         <div className="flex items-center justify-end gap-2">
+                          {hasPermission("task:update") && (
                           <Button 
                             variant="ghost" 
                             size="sm"
@@ -390,6 +396,8 @@ export function TaskScheduling() {
                             <Edit className="w-4 h-4 mr-1" />
                             编辑
                           </Button>
+                          )}
+                          {hasPermission("task:delete") && (
                           <Button 
                             variant="ghost" 
                             size="sm"
@@ -399,6 +407,7 @@ export function TaskScheduling() {
                             <Trash2 className="w-4 h-4 mr-1" />
                             删除
                           </Button>
+                          )}
                         </div>
                       </td>
                     </tr>

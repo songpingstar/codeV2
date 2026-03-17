@@ -2,9 +2,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 from app.models import User
 from app.core.exceptions import NotFoundError, BusinessError
-from passlib.context import CryptContext
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+import bcrypt
 
 
 class UserService:
@@ -41,7 +39,9 @@ class UserService:
     
     def create_user(self, user_data: dict) -> dict:
         if "password" in user_data:
-            user_data["password_hash"] = pwd_context.hash(user_data.pop("password"))
+            password = user_data.pop("password")
+            password_bytes = password.encode('utf-8')
+            user_data["password_hash"] = bcrypt.hashpw(password_bytes, bcrypt.gensalt()).decode('utf-8')
         
         user = User(**user_data)
         self.db.add(user)
@@ -57,13 +57,21 @@ class UserService:
             "created_at": user.created_at.isoformat() if user.created_at else None
         }
     
+    def get_user_by_id(self, user_id: int) -> Optional[User]:
+        return self.db.query(User).filter(User.id == user_id).first()
+    
     def update_user(self, user_id: int, user_data: dict) -> dict:
-        user = self.db.query(User).filter(User.id == user_id).first()
+        user = self.get_user_by_id(user_id)
         if not user:
             raise NotFoundError(f"用户不存在: {user_id}")
         
+        if "password" in user_data:
+            password = user_data.pop("password")
+            password_bytes = password.encode('utf-8')
+            user.password_hash = bcrypt.hashpw(password_bytes, bcrypt.gensalt()).decode('utf-8')
+        
         for key, value in user_data.items():
-            if value is not None:
+            if hasattr(user, key):
                 setattr(user, key, value)
         
         self.db.commit()
@@ -79,7 +87,7 @@ class UserService:
         }
     
     def delete_user(self, user_id: int) -> None:
-        user = self.db.query(User).filter(User.id == user_id).first()
+        user = self.get_user_by_id(user_id)
         if not user:
             raise NotFoundError(f"用户不存在: {user_id}")
         
@@ -91,5 +99,14 @@ class UserService:
         if not user:
             raise NotFoundError(f"用户不存在: {user_id}")
         
-        user.password_hash = pwd_context.hash(new_password)
+        password_bytes = new_password.encode('utf-8')
+        user.password_hash = bcrypt.hashpw(password_bytes, bcrypt.gensalt()).decode('utf-8')
         self.db.commit()
+
+    def get_user_by_username(self, username: str) -> Optional[User]:
+        return self.db.query(User).filter(User.username == username).first()
+
+    def verify_password(self, plain_password: str, hashed_password: str) -> bool:
+        password_bytes = plain_password.encode('utf-8')
+        hash_bytes = hashed_password.encode('utf-8') if isinstance(hashed_password, str) else hashed_password
+        return bcrypt.checkpw(password_bytes, hash_bytes)

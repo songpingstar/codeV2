@@ -4,6 +4,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 from app.core.response import SuccessResponse
 from app.services.category_service import CategoryService
+from app.core.dependencies import require_permission
 from database import get_db
 
 router = APIRouter(prefix="/script-categories", tags=["Category"])
@@ -24,7 +25,10 @@ class CategoryUpdate(BaseModel):
 
 
 @router.get("")
-async def get_categories(db: Session = Depends(get_db)):
+async def get_categories(
+    db: Session = Depends(get_db),
+    user: dict = Depends(require_permission("category:view"))
+):
     service = CategoryService(db)
     result = service.get_categories()
     return SuccessResponse.create(data=result)
@@ -33,7 +37,8 @@ async def get_categories(db: Session = Depends(get_db)):
 @router.post("")
 async def create_category(
     category: CategoryCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(require_permission("category:create"))
 ):
     service = CategoryService(db)
     result = service.create_category(category.model_dump())
@@ -44,7 +49,8 @@ async def create_category(
 async def update_category(
     id: int = Path(..., ge=1),
     category: CategoryUpdate = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(require_permission("category:update"))
 ):
     service = CategoryService(db)
     result = service.update_category(id, category.model_dump(exclude_unset=True))
@@ -54,7 +60,8 @@ async def update_category(
 @router.delete("/{id}")
 async def delete_category(
     id: int = Path(..., ge=1),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(require_permission("category:delete"))
 ):
     service = CategoryService(db)
     service.delete_category(id)
