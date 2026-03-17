@@ -22,7 +22,9 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { hasPermission } from '@/app/utils/permissions';
+import { formatDate } from '@/app/utils/datetime';
 import {
+  Select,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -434,7 +436,7 @@ export function NodeDetail({ nodeId, onBack }: NodeDetailProps) {
                     <div className="flex-1">
                       <p className="text-xs text-gray-500">最近心跳时间</p>
                       <p className="text-sm font-medium text-gray-900 mt-0.5">
-                        {node.last_heartbeat}
+                        {formatDate(node.last_heartbeat)}
                       </p>
                     </div>
                   </div>

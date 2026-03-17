@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Eye, Edit, Trash2, Play, MoreVertical } from 'lucide-react';
+import { Plus, Search, Eye, Edit, Trash2, Play } from 'lucide-react';
 import { Card, CardContent } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { hasPermission } from '@/app/utils/permissions';
@@ -10,12 +10,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/app/components/ui/select';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/app/components/ui/dropdown-menu';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,10 +41,10 @@ function formatDate(dateStr: string) {
 interface Script {
   id: number;
   name: string;
-  type: 'Python' | 'Shell';
-  category: string;
+  type: 'Python' | 'Shell' | 'Go';
+  category?: string;
   maintainer: string;
-  updateTime: string;
+  updateTime?: string;
   description?: string;
 }
 
@@ -160,10 +154,11 @@ export function ScriptManagement() {
     const styles = {
       Python: 'bg-blue-50 text-blue-700 border-blue-200',
       Shell: 'bg-green-50 text-green-700 border-green-200',
+      Go: 'bg-cyan-50 text-cyan-700 border-cyan-200',
     };
     
     return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded border text-xs font-medium ${styles[type as keyof typeof styles]}`}>
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded border text-xs font-medium ${styles[type as keyof typeof styles] || 'bg-gray-50 text-gray-700 border-gray-200'}`}>
         {type}
       </span>
     );
@@ -211,6 +206,7 @@ export function ScriptManagement() {
                   <SelectItem value="all">全部类型</SelectItem>
                   <SelectItem value="Python">Python</SelectItem>
                   <SelectItem value="Shell">Shell</SelectItem>
+                  <SelectItem value="Go">Go</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -301,10 +297,10 @@ export function ScriptManagement() {
                         <span className="text-sm text-gray-600">{script.maintainer}</span>
                       </td>
                       <td className="py-4 px-4">
-                        <span className="text-sm text-gray-600">{formatDate(script.updateTime)}</span>
+                        <span className="text-sm text-gray-600">{formatDate(script.updateTime || '')}</span>
                       </td>
                       <td className="py-4 px-4">
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex items-center justify-end gap-1">
                           {/* Quick Actions */}
                           <Button 
                             variant="ghost" 
@@ -314,6 +310,26 @@ export function ScriptManagement() {
                           >
                             <Eye className="w-4 h-4" />
                           </Button>
+                          {hasPermission("script:update") && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleEdit(script.id)}
+                            className="h-8 px-2 text-gray-600 hover:text-orange-600 hover:bg-orange-50"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          )}
+                          {hasPermission("script:delete") && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleDeleteClick(script.id)}
+                            className="h-8 px-2 text-gray-600 hover:text-red-600 hover:bg-red-50"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                          )}
                           {hasPermission("script:execute") && (
                           <Button 
                             variant="ghost" 
@@ -324,39 +340,6 @@ export function ScriptManagement() {
                             <Play className="w-4 h-4" />
                           </Button>
                           )}
-                          
-                          {/* More Actions Dropdown */}
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <button className="inline-flex items-center justify-center h-8 px-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors">
-                                <MoreVertical className="w-4 h-4" />
-                              </button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleView(script.id)}>
-                                <Eye className="mr-2 h-4 w-4" />
-                                查看详情
-                              </DropdownMenuItem>
-                              {hasPermission("script:update") && (
-                              <DropdownMenuItem onClick={() => handleEdit(script.id)}>
-                                <Edit className="mr-2 h-4 w-4" />
-                                编辑脚本
-                              </DropdownMenuItem>
-                              )}
-                              {hasPermission("script:execute") && (
-                              <DropdownMenuItem onClick={() => { setSelectedScriptId(script.id); setShowExecuteDialog(true); }}>
-                                <Play className="mr-2 h-4 w-4" />
-                                立即执行
-                              </DropdownMenuItem>
-                              )}
-                              {hasPermission("script:delete") && (
-                              <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteClick(script.id)}>
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                删除脚本
-                              </DropdownMenuItem>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
                         </div>
                       </td>
                     </tr>

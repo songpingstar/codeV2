@@ -73,9 +73,14 @@ class DashboardService:
             Script.type == "Shell"
         ).count()
         
+        go_count = self.db.query(Script).filter(
+            Script.type == "Go"
+        ).count()
+        
         return {
             "python": python_count,
-            "shell": shell_count
+            "shell": shell_count,
+            "go": go_count
         }
     
     def get_task_stats(self) -> Dict[str, int]:

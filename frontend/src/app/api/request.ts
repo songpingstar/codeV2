@@ -1,4 +1,15 @@
-import axios from "axios"
+/// <reference types="vite/client" />
+
+interface ImportMetaEnv {
+  readonly VITE_API_BASE_URL: string
+  readonly VITE_API_PREFIX: string
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv
+}
+
+import axios, { AxiosResponse, AxiosRequestConfig } from "axios"
 
 const instance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL + import.meta.env.VITE_API_PREFIX,
@@ -19,7 +30,7 @@ instance.interceptors.request.use(
 )
 
 instance.interceptors.response.use(
-  (response) => {
+  (response: AxiosResponse) => {
     return response.data.data
   },
   (error) => {
@@ -28,4 +39,19 @@ instance.interceptors.response.use(
   }
 )
 
-export default instance
+const request = {
+  get: <T = any>(url: string, config?: AxiosRequestConfig): Promise<T> => {
+    return instance.get(url, config) as Promise<T>
+  },
+  post: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> => {
+    return instance.post(url, data, config) as Promise<T>
+  },
+  put: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> => {
+    return instance.put(url, data, config) as Promise<T>
+  },
+  delete: <T = any>(url: string, config?: AxiosRequestConfig): Promise<T> => {
+    return instance.delete(url, config) as Promise<T>
+  }
+}
+
+export default request

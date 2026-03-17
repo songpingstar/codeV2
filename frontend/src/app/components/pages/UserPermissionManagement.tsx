@@ -17,6 +17,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { hasPermission } from '@/app/utils/permissions';
+import { formatDate } from '@/app/utils/datetime';
 import { Label } from '@/app/components/ui/label';
 import { Input } from '@/app/components/ui/input';
 import {
@@ -466,7 +467,7 @@ export function UserPermissionManagement() {
                             user.status === 'disabled' ? 'text-gray-400' : 'text-gray-600'
                           }`}
                         >
-                          {user.created_at}
+                          {formatDate(user.created_at)}
                         </span>
                       </td>
                       <td className="py-4 px-4">

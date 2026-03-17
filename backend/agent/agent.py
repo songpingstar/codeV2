@@ -261,6 +261,12 @@ class Agent:
                     f.write(rendered_content)
                 os.chmod(script_path, 0o755)
                 cmd = ['python3', script_path]
+            elif script_type == 'go':
+                script_path = os.path.join(self.config.script_dir, f"{execution_id}.go")
+                with open(script_path, 'w') as f:
+                    f.write(rendered_content)
+                os.chmod(script_path, 0o755)
+                cmd = ['go', 'run', script_path]
             else:
                 script_path = os.path.join(self.config.script_dir, f"{execution_id}.sh")
                 with open(script_path, 'w') as f:

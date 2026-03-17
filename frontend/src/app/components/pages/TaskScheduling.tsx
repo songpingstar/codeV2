@@ -23,35 +23,12 @@ import {
   AlertDialogTitle,
 } from '@/app/components/ui/alert-dialog';
 import { TaskDialog } from '@/app/components/dialogs/TaskDialog';
-import { tasksApi } from '@/app/api/tasks';
-
-interface ScheduledTask {
-  id: number;
-  name: string;
-  script_name: string;
-  script_id: number;
-  cron_expression: string;
-  cron_description: string;
-  next_run_time: string;
-  enabled: boolean;
-  last_run_time?: string;
-  last_run_status?: 'success' | 'failed';
-  environment: 'dev' | 'test' | 'prod';
-  execution_mode: 'specified' | 'all';
-  target_nodes?: number[];
-  target_node_names?: string;
-}
-
-interface TaskStats {
-  total: number;
-  enabled: number;
-  disabled: number;
-}
+import { tasksApi, Task, TaskStats } from '@/app/api/tasks';
 
 export function TaskScheduling() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [tasks, setTasks] = useState<ScheduledTask[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [stats, setStats] = useState<TaskStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -109,7 +86,7 @@ export function TaskScheduling() {
 
   const filteredTasks = tasks.filter((task) => {
     const matchesSearch = task.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         task.script_name.toLowerCase().includes(searchTerm.toLowerCase());
+                         (task.script_name && task.script_name.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesStatus = statusFilter === 'all' || 
                          (statusFilter === 'enabled' && task.enabled) ||
                          (statusFilter === 'disabled' && !task.enabled);
@@ -133,7 +110,7 @@ export function TaskScheduling() {
     );
   };
 
-  const getLastRunStatusBadge = (status?: 'success' | 'failed') => {
+  const getLastRunStatusBadge = (status?: string) => {
     if (!status) return null;
     
     if (status === 'success') {
@@ -152,7 +129,7 @@ export function TaskScheduling() {
     );
   };
 
-  const getEnvironmentBadge = (env?: 'dev' | 'test' | 'prod') => {
+  const getEnvironmentBadge = (env?: string) => {
     if (!env) return null;
     const configs: Record<string, { label: string; color: string }> = {
       dev: { label: 'Dev', color: 'bg-blue-100 text-blue-700' },
@@ -344,7 +321,7 @@ export function TaskScheduling() {
                           {task.last_run_time && (
                             <div className="flex items-center gap-2 mt-1">
                               <span className="text-xs text-gray-500">
-                                上次: {task.last_run_time}
+                                上次: {formatDate(task.last_run_time)}
                               </span>
                               {getLastRunStatusBadge(task.last_run_status)}
                             </div>

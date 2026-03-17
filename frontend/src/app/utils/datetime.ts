@@ -5,7 +5,7 @@ export function nowBeijing(): Date {
   return new Date(utc + beijingOffset);
 }
 
-export function formatDate(dateStr: string): string {
+export function formatDate(dateStr: string | undefined): string {
   if (!dateStr) return '';
   const date = new Date(dateStr);
   const year = date.getFullYear();

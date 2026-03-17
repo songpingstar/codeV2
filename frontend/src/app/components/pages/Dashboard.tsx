@@ -1,15 +1,20 @@
 import { useState, useEffect } from "react"
 import { 
-  Activity, 
-  CheckCircle2, 
+  RefreshCw, 
+  Play, 
+  CheckCircle,
+  CheckCircle2,
   XCircle, 
   Clock, 
-  TrendingUp,
+  AlertCircle,
+  Activity,
   Server,
+  TrendingUp,
   FileCode
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { dashboardApi } from '@/app/api/dashboard';
+import { formatDate } from '@/app/utils/datetime';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 
 interface StatCardProps {
@@ -90,6 +95,7 @@ function getStatusBadge(status: string) {
 const COLORS = {
   python: '#3b82f6',
   shell: '#22c55e',
+  go: '#06b6d4',
 };
 
 export function Dashboard() {
@@ -126,6 +132,7 @@ export function Dashboard() {
   const pieData = [
     { name: 'Python', value: scriptDistribution?.python ?? 0 },
     { name: 'Shell', value: scriptDistribution?.shell ?? 0 },
+    { name: 'Go', value: scriptDistribution?.go ?? 0 },
   ];
 
   return (
@@ -191,7 +198,7 @@ export function Dashboard() {
                         labelLine={false}
                       >
                         {pieData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={index === 0 ? COLORS.python : COLORS.shell} />
+                          <Cell key={`cell-${index}`} fill={index === 0 ? COLORS.python : index === 1 ? COLORS.shell : COLORS.go} />
                         ))}
                       </Pie>
                       <Tooltip 
@@ -266,7 +273,7 @@ export function Dashboard() {
                           <td className="py-3 px-4 text-sm text-gray-900">{record.script_name}</td>
                           <td className="py-3 px-4">{getStatusBadge(record.status)}</td>
                           <td className="py-3 px-4 text-sm text-gray-600">{record.node}</td>
-                          <td className="py-3 px-4 text-sm text-gray-600">{record.start_time}</td>
+                          <td className="py-3 px-4 text-sm text-gray-600">{formatDate(record.start_time)}</td>
                           <td className="py-3 px-4 text-sm text-gray-600">{record.duration}</td>
                         </tr>
                       ))

@@ -3,6 +3,7 @@ import { Save, Play, ArrowLeft, Copy, Check, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { hasPermission } from '@/app/utils/permissions';
+import { formatDate } from '@/app/utils/datetime';
 import { Input } from '@/app/components/ui/input';
 import { Label } from '@/app/components/ui/label';
 import { Textarea } from '@/app/components/ui/textarea';
@@ -16,7 +17,7 @@ import {
 import { ScriptExecuteDialog } from '@/app/components/dialogs/ScriptExecuteDialog';
 import { copyToClipboard } from '@/app/utils/clipboard';
 import { scriptsApi } from '@/app/api/scripts';
-import { scriptCategoriesApi } from '@/app/api/script-categories';
+import { scriptCategoriesApi, Category } from '@/app/api/script-categories';
 
 interface ScriptDetailProps {
   onBack?: () => void;
@@ -24,11 +25,11 @@ interface ScriptDetailProps {
   viewOnly?: boolean;
 }
 
-interface Script {
+interface ScriptFormData {
   id?: number;
   name: string;
   description: string;
-  type: 'Python' | 'Shell';
+  type: 'Python' | 'Shell' | 'Go';
   category_id: number;
   category_name?: string;
   maintainer: string;
@@ -38,13 +39,8 @@ interface Script {
   updated_at?: string;
 }
 
-interface Category {
-  id: number;
-  name: string;
-}
-
 export function ScriptDetail({ onBack, scriptId, viewOnly = false }: ScriptDetailProps) {
-  const [script, setScript] = useState<Script>({
+  const [script, setScript] = useState<ScriptFormData>({
     name: '',
     description: '',
     type: 'Python',
@@ -79,7 +75,7 @@ export function ScriptDetail({ onBack, scriptId, viewOnly = false }: ScriptDetai
         setScript({
           name: res.name || '',
           description: res.description || '',
-          type: res.type || 'Python',
+          type: (res.type as 'Python' | 'Shell' | 'Go') || 'Python',
           category_id: res.category_id || 0,
           category_name: res.category,
           maintainer: res.maintainer || '',
@@ -229,6 +225,7 @@ export function ScriptDetail({ onBack, scriptId, viewOnly = false }: ScriptDetai
                   <SelectContent>
                     <SelectItem value="Python">Python</SelectItem>
                     <SelectItem value="Shell">Shell</SelectItem>
+                    <SelectItem value="Go">Go</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -271,11 +268,11 @@ export function ScriptDetail({ onBack, scriptId, viewOnly = false }: ScriptDetai
                   </div>
                   <div className="flex justify-between text-xs text-gray-500">
                     <span>创建时间：</span>
-                    <span>{script.created_at || '-'}</span>
+                    <span>{formatDate(script.created_at) || '-'}</span>
                   </div>
                   <div className="flex justify-between text-xs text-gray-500">
                     <span>更新时间：</span>
-                    <span>{script.updated_at || '-'}</span>
+                    <span>{formatDate(script.updated_at) || '-'}</span>
                   </div>
                 </div>
               )}

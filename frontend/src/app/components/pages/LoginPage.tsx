@@ -34,7 +34,8 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
       onLoginSuccess();
     } catch (err: any) {
       console.error('Login error:', err);
-      setError(err.response?.data?.message || err.message || '登录失败，请检查用户名和密码');
+      const errorMessage = err.response?.data?.detail || err.response?.data?.message || err.message || '登录失败，请检查用户名和密码';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
